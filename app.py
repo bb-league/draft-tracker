@@ -32,32 +32,43 @@ id2baller = {x['id']: x['web_name'] for x in footballers['elements']}
 id2pos = {x['id']: x['element_type'] for x in footballers['elements']}
 id2owner = {x['entry_name']: x['player_first_name'] for x in data['league_entries']}
 
-# Optional xPPG map
+# Optional expected points dictionary (empty dict triggers positional fallback colors)
 player2xPts = {}
-max_points = max(player2xPts.values()) if player2xPts else 1
+max_points = max(player2xPts.values()) if player2xPts else 0
 
 def custom_styling(val):
-    if pd.isna(val):
-        return 'background-color: #f0f0f0;'
+    if pd.isna(val) or val == "":
+        return 'background-color: #f9f9f9; text-align: center;'
     
     pos = id2pos.get(val)
-    if pos == 1: color = "#ccebc5"
-    elif pos == 2: color = "#fed9a6"
-    elif pos == 3: color = "#b3cde3"
-    elif pos == 4: color = "#fbb4ae"
-    else: color = 'lightgray'
+    if pos == 1: color = "#ccebc5"    # GKP (Green)
+    elif pos == 2: color = "#fed9a6"  # DEF (Orange)
+    elif pos == 3: color = "#b3cde3"  # MID (Blue)
+    elif pos == 4: color = "#fbb4ae"  # FWD (Red)
+    else: color = '#e0e0e0'
 
+    # Check if expected points are available
     xpts = player2xPts.get(val, 0)
-    width_percent = (100 * xpts / max_points) if max_points > 0 else 0
+    has_xpts = max_points > 0 and val in player2xPts
+
+    if has_xpts:
+        width_percent = (100 * xpts / max_points)
+        bg_style = (
+            f'background-image: linear-gradient(270deg, {color} {width_percent}%, transparent {width_percent}%);'
+            f'background-color: lightgray;'
+            'background-repeat: no-repeat;'
+            'background-position: right center;'
+            'background-size: 100% 100%;'
+        )
+    else:
+        # Fallback to full solid positional color
+        bg_style = f'background-color: {color};'
 
     return (
-        f'background-image: linear-gradient(270deg, {color} {width_percent}%, transparent {width_percent}%);'
-        f'background-color: lightgray;'
-        'background-repeat: no-repeat;'
-        'background-position: right center;'
-        'background-size: 100% 100%;'
-        'text-align: right;'
-        'border: 1px solid black;'
+        f'{bg_style}'
+        'text-align: center;'
+        'border: 1px solid #333;'
+        'font-weight: 500;'
     )
 
 def render_board():
@@ -67,7 +78,7 @@ def render_board():
     except Exception:
         picks = []
 
-    # Fallback for finished drafts
+    # Fallback for completed drafts
     if not picks and 'element_status' in player_data:
         entries_count = len(data['league_entries'])
         picks = [
@@ -93,24 +104,66 @@ def render_board():
     viz = df.pivot(index='round', columns='entry_name', values='element')
     viz = viz.reindex(columns=draft_order)
 
-    # Column header totals
-    viz.columns = [
-        f"{col} ({sum(player2xPts.get(x, 0) for x in viz[col].dropna()):.2f})"
-        for col in viz.columns
-    ]
+    num_cols = len(viz.columns)
 
-    styler = viz.style.format(lambda x: id2baller.get(x, ""))
+    # Format cell content with player names and directional snake arrows
+    formatted_viz = viz.copy().astype(object)
+    for round_num in viz.index:
+        is_odd = (round_num % 2 != 0)
+        for col_idx, col_name in enumerate(viz.columns):
+            player_id = viz.loc[round_num, col_name]
+            player_name = id2baller.get(player_id, "") if pd.notna(player_id) else ""
+
+            if not player_name:
+                formatted_viz.loc[round_num, col_name] = ""
+                continue
+
+            # Determine snake direction arrows
+            if is_odd:
+                if col_idx == num_cols - 1:
+                    arrow = " ↓"  # Right edge down arrow to even round
+                else:
+                    arrow = " →"  # Odd round going right
+            else:
+                if col_idx == 0:
+                    arrow = " ↓"  # Left edge down arrow to odd round
+                else:
+                    arrow = " ←"  # Even round going left
+
+            formatted_viz.loc[round_num, col_name] = f"{player_name}{arrow}"
+
+    # Format column header totals if xPPG exists
+    has_xpts = max_points > 0 and len(player2xPts) > 0
+    if has_xpts:
+        viz.columns = [
+            f"{col} ({sum(player2xPts.get(x, 0) for x in viz[col].dropna()):.2f})"
+            for col in viz.columns
+        ]
+        formatted_viz.columns = viz.columns
+
+    # Render Styler
+    styler = viz.style.format(lambda val: id2baller.get(val, "") if pd.notna(val) else "")
     styler.map(custom_styling)
-    
-    st.write(styler.to_html(), unsafe_allow_html=True)
+
+    # Inject formatted text (player name + arrow) into styled cells
+    html_out = styler.to_html()
+    for col_name in viz.columns:
+        for round_num in viz.index:
+            p_id = viz.loc[round_num, col_name]
+            if pd.notna(p_id):
+                raw_name = id2baller.get(p_id, "")
+                arrow_text = formatted_viz.loc[round_num, col_name]
+                html_out = html_out.replace(f">{raw_name}<", f">{arrow_text}<", 1)
+
+    st.write(html_out, unsafe_allow_html=True)
 
 st.title("FPL Live Draft Board")
 
-# Auto-refresh loop control
+# Auto-refresh loop
 auto_refresh = st.checkbox("Enable Auto-Refresh (10s)", value=True)
 render_board()
 
 if auto_refresh:
     time.sleep(10)
     st.rerun()
-
+    
