@@ -100,7 +100,7 @@ def render_board():
     ]
 
     styler = viz.style.format(lambda x: id2baller.get(x, ""))
-    styler.applymap(custom_styling)
+    styler.map(custom_styling)
     
     st.write(styler.to_html(), unsafe_allow_html=True)
 
@@ -114,4 +114,3 @@ if auto_refresh:
     time.sleep(10)
     st.rerun()
 
-    
