@@ -5,7 +5,7 @@ import time
 
 st.set_page_config(page_title="FPL Draft Tracker", layout="wide")
 
-LEAGUE_CODE = "25152"  # Update with your league ID
+LEAGUE_CODE = "28664"  # Update with your league ID
 HEADERS = {
     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
 }
