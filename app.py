@@ -1,19 +1,23 @@
 import streamlit as st
 import pandas as pd
 import requests
-import time
 
 st.set_page_config(page_title="FPL Draft Tracker", layout="wide")
 
-LEAGUE_CODE = "28664"  # Update with your league ID
-HEADERS = {
-    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
+LEAGUE_CODE = "25152"  # Update with your league ID
+HEADERS = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"}
+
+POSITION_MAP = {1: "GKP", 2: "DEF", 3: "MID", 4: "FWD"}
+POSITION_COLORS = {
+    "GKP": "#2e7d32",  # Dark Green
+    "DEF": "#e65100",  # Dark Orange
+    "MID": "#1565c0",  # Dark Blue
+    "FWD": "#c62828",  # Dark Red
 }
 
 @st.cache_data(ttl=3600)
 def load_static():
-    res = requests.get("https://draft.premierleague.com/api/bootstrap-static", headers=HEADERS)
-    return res.json()
+    return requests.get("https://draft.premierleague.com/api/bootstrap-static", headers=HEADERS).json()
 
 @st.cache_data(ttl=3600)
 def load_league(league_code):
@@ -29,141 +33,151 @@ footballers = load_static()
 data, player_data = load_league(LEAGUE_CODE)
 
 id2baller = {x['id']: x['web_name'] for x in footballers['elements']}
-id2pos = {x['id']: x['element_type'] for x in footballers['elements']}
+id2pos_id = {x['id']: x['element_type'] for x in footballers['elements']}
+id2pos = {x['id']: POSITION_MAP.get(x['element_type'], "UNK") for x in footballers['elements']}
 id2owner = {x['entry_name']: x['player_first_name'] for x in data['league_entries']}
 
-# Optional expected points dictionary (empty dict triggers positional fallback colors)
-player2xPts = {}
-max_points = max(player2xPts.values()) if player2xPts else 0
+# Fetch picks
+try:
+    choices = load_draft(LEAGUE_CODE)
+    picks = choices.get('choices', [])
+except Exception:
+    picks = []
 
-def custom_styling(val):
-    if pd.isna(val) or val == "":
-        return 'background-color: #f9f9f9; text-align: center;'
+if not picks and 'element_status' in player_data:
+    entries_count = len(data['league_entries'])
+    picks = [
+        {
+            'element': item['element'],
+            'entry_name': item['owner'],
+            'round': (idx // entries_count) + 1
+        }
+        for idx, item in enumerate(player_data['element_status'])
+    ]
+
+df = pd.DataFrame(picks)
+df['manager'] = df['entry_name'].map(lambda x: id2owner.get(x, x))
+df['player_name'] = df['element'].map(lambda x: id2baller.get(x, "Unknown"))
+df['position'] = df['element'].map(lambda x: id2pos.get(x, "UNK"))
+
+# Layout UI
+st.title("⚽ FPL Live Draft & Team Tracker")
+
+view_mode = st.radio("Select View:", ["🎯 Draft Board", "👤 Team Rosters"], horizontal=True)
+
+# ---------------------------------------------------------
+# VIEW 1: CARDS DRAFT BOARD
+# ---------------------------------------------------------
+if view_mode == "🎯 Draft Board":
+    st.subheader("Snake Draft Board")
     
-    pos = id2pos.get(val)
-    if pos == 1: color = "#ccebc5"    # GKP (Green)
-    elif pos == 2: color = "#fed9a6"  # DEF (Orange)
-    elif pos == 3: color = "#b3cde3"  # MID (Blue)
-    elif pos == 4: color = "#fbb4ae"  # FWD (Red)
-    else: color = '#e0e0e0'
-
-    # Check if expected points are available
-    xpts = player2xPts.get(val, 0)
-    has_xpts = max_points > 0 and val in player2xPts
-
-    if has_xpts:
-        width_percent = (100 * xpts / max_points)
-        bg_style = (
-            f'background-image: linear-gradient(270deg, {color} {width_percent}%, transparent {width_percent}%);'
-            f'background-color: lightgray;'
-            'background-repeat: no-repeat;'
-            'background-position: right center;'
-            'background-size: 100% 100%;'
-        )
-    else:
-        # Fallback to full solid positional color
-        bg_style = f'background-color: {color};'
-
-    return (
-        f'{bg_style}'
-        'text-align: center;'
-        'border: 1px solid #333;'
-        'font-weight: 500;'
-    )
-
-def render_board():
-    try:
-        choices = load_draft(LEAGUE_CODE)
-        picks = choices.get('choices', [])
-    except Exception:
-        picks = []
-
-    # Fallback for completed drafts
-    if not picks and 'element_status' in player_data:
-        entries_count = len(data['league_entries'])
-        picks = [
-            {
-                'element': item['element'],
-                'entry_name': item['owner'],
-                'round': (idx // entries_count) + 1
-            }
-            for idx, item in enumerate(player_data['element_status'])
-        ]
-
-    df = pd.DataFrame(picks)
-    if df.empty:
-        st.error("No pick data found for this league.")
-        return
-
-    df['entry_name'] = df['entry_name'].map(lambda x: id2owner.get(x, x))
-    
-    # Preserve Round 1 Order
     round1 = df[df['round'] == 1]
-    draft_order = list(round1['entry_name']) if not round1.empty else list(df['entry_name'].unique())
-
-    viz = df.pivot(index='round', columns='entry_name', values='element')
-    viz = viz.reindex(columns=draft_order)
-
-    num_cols = len(viz.columns)
-
-    # Format cell content with player names and directional snake arrows
-    formatted_viz = viz.copy().astype(object)
-    for round_num in viz.index:
-        is_odd = (round_num % 2 != 0)
-        for col_idx, col_name in enumerate(viz.columns):
-            player_id = viz.loc[round_num, col_name]
-            player_name = id2baller.get(player_id, "") if pd.notna(player_id) else ""
-
-            if not player_name:
-                formatted_viz.loc[round_num, col_name] = ""
-                continue
-
-            # Determine snake direction arrows
-            if is_odd:
-                if col_idx == num_cols - 1:
-                    arrow = " ↓"  # Right edge down arrow to even round
-                else:
-                    arrow = " →"  # Odd round going right
-            else:
-                if col_idx == 0:
-                    arrow = " ↓"  # Left edge down arrow to odd round
-                else:
-                    arrow = " ←"  # Even round going left
-
-            formatted_viz.loc[round_num, col_name] = f"{player_name}{arrow}"
-
-    # Format column header totals if xPPG exists
-    has_xpts = max_points > 0 and len(player2xPts) > 0
-    if has_xpts:
-        viz.columns = [
-            f"{col} ({sum(player2xPts.get(x, 0) for x in viz[col].dropna()):.2f})"
-            for col in viz.columns
-        ]
-        formatted_viz.columns = viz.columns
-
-    # Render Styler
-    styler = viz.style.format(lambda val: id2baller.get(val, "") if pd.notna(val) else "")
-    styler.map(custom_styling)
-
-    # Inject formatted text (player name + arrow) into styled cells
-    html_out = styler.to_html()
-    for col_name in viz.columns:
-        for round_num in viz.index:
-            p_id = viz.loc[round_num, col_name]
-            if pd.notna(p_id):
-                raw_name = id2baller.get(p_id, "")
-                arrow_text = formatted_viz.loc[round_num, col_name]
-                html_out = html_out.replace(f">{raw_name}<", f">{arrow_text}<", 1)
-
-    st.write(html_out, unsafe_allow_html=True)
-
-st.title("FPL Live Draft Board")
-
-# Auto-refresh loop
-auto_refresh = st.checkbox("Enable Auto-Refresh (10s)", value=True)
-render_board()
-
-if auto_refresh:
-    time.sleep(10)
-    st.rerun()
+    draft_order = list(round1['manager']) if not round1.empty else list(df['manager'].unique())
     
+    num_cols = len(draft_order)
+    max_rounds = int(df['round'].max()) if not df.empty else 0
+
+    # Header Row with Manager Names
+    header_cols = st.columns(num_cols)
+    for idx, manager in enumerate(draft_order):
+        header_cols[idx].markdown(f"### **{manager}**")
+
+    st.divider()
+
+    # Grid of Rounds
+    for r in range(1, max_rounds + 1):
+        round_df = df[df['round'] == r]
+        is_odd = (r % 2 != 0)
+        
+        cols = st.columns(num_cols)
+        st.caption(f"**Round {r}** {'(→ Right)' if is_odd else '(← Left)'}")
+        
+        for c_idx, manager in enumerate(draft_order):
+            pick = round_df[round_df['manager'] == manager]
+            
+            # Snake Arrows
+            if is_odd:
+                arrow = "↓" if c_idx == num_cols - 1 else "→"
+            else:
+                arrow = "↓" if c_idx == 0 else "←"
+
+            if not pick.empty:
+                p_name = pick.iloc[0]['player_name']
+                p_pos = pick.iloc[0]['position']
+                bg_color = POSITION_COLORS.get(p_pos, "#424242")
+                
+                # Render Individual Styled Card
+                cols[c_idx].markdown(
+                    f"""
+                    <div style="
+                        background-color: {bg_color}; 
+                        color: white; 
+                        padding: 8px; 
+                        border-radius: 6px; 
+                        margin-bottom: 5px; 
+                        text-align: center;
+                        font-weight: bold;
+                        box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+                    ">
+                        <small style="opacity: 0.8;">{p_pos} {arrow}</small><br>
+                        {p_name}
+                    </div>
+                    """, 
+                    unsafe_allow_html=True
+                )
+            else:
+                cols[c_idx].markdown(
+                    f"""
+                    <div style="
+                        border: 1px dashed #ccc; 
+                        padding: 8px; 
+                        border-radius: 6px; 
+                        text-align: center;
+                        color: #888;
+                    ">
+                        {arrow}
+                    </div>
+                    """, 
+                    unsafe_allow_html=True
+                )
+
+# ---------------------------------------------------------
+# VIEW 2: INDIVIDUAL TEAM VIEW
+# ---------------------------------------------------------
+else:
+    st.subheader("Team Roster Explorer")
+    
+    managers = sorted(list(df['manager'].unique()))
+    
+    # Manager selection tabs at top
+    tabs = st.tabs(managers)
+    
+    for idx, manager in enumerate(managers):
+        with tabs[idx]:
+            team_df = df[df['manager'] == manager].copy()
+            st.markdown(f"### **{manager}'s Squad** ({len(team_df)} Players)")
+            
+            # Group by Position
+            col1, col2, col3, col4 = st.columns(4)
+            
+            for pos_name, container in zip(["GKP", "DEF", "MID", "FWD"], [col1, col2, col3, col4]):
+                pos_players = team_df[team_df['position'] == pos_name]
+                container.markdown(f"#### **{pos_name}** ({len(pos_players)})")
+                
+                for _, row in pos_players.iterrows():
+                    bg_color = POSITION_COLORS.get(pos_name, "#424242")
+                    container.markdown(
+                        f"""
+                        <div style="
+                            background-color: {bg_color}; 
+                            color: white; 
+                            padding: 10px; 
+                            border-radius: 6px; 
+                            margin-bottom: 8px;
+                        ">
+                            <strong>{row['player_name']}</strong><br>
+                            <small>Drafted Rd {row['round']}</small>
+                        </div>
+                        """, 
+                        unsafe_allow_html=True
+                    )
