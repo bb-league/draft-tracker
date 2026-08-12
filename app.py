@@ -26,11 +26,24 @@ st.markdown("""
         padding-bottom: 8px;
     }
 
-    /* Preserve min column width on smaller mobile viewports */
+    /* Mobile specific column sizing */
     @media (max-width: 768px) {
+        /* Reduce overall min-width so columns are much narrower */
         div[data-testid="stHorizontalBlock"] {
             flex-wrap: nowrap !important;
-            min-width: 800px; /* Forces side-by-side grid structure */
+            min-width: max-content !important; 
+        }
+        
+        /* Force individual Streamlit column wrappers to stay compact */
+        div[data-testid="column"] {
+            min-width: 105px !important;
+            max-width: 120px !important;
+            padding: 0 2px !important;
+        }
+
+        .tooltip-header {
+            font-size: 0.8rem !important;
+            padding: 5px 2px !important;
         }
     }
 
@@ -58,23 +71,39 @@ st.markdown("""
         box-shadow: 0px 2px 4px rgba(0,0,0,0.3);
     }
 
-    /* Pitch Visual Tooltip Box */
+    /* Base Tooltip Box */
     .tooltip-header .tooltip-text {
         visibility: hidden;
-        width: 320px;
+        width: 270px; /* Sized down slightly for mobile safety */
         background-color: #121212;
         color: #fff;
         text-align: center;
         border-radius: 8px;
-        padding: 12px;
+        padding: 8px;
         position: absolute;
-        z-index: 99999 !important;
+        z-index: 999999 !important;
         top: 110%;
         left: 50%;
         transform: translateX(-50%);
-        box-shadow: 0px 8px 24px rgba(0,0,0,0.8);
-        border: 1px solid #333;
+        box-shadow: 0px 8px 24px rgba(0,0,0,0.9);
+        border: 1px solid #444;
         font-weight: normal;
+        pointer-events: none;
+    }
+
+    /* Shift tooltip RIGHT for left-edge columns */
+    div[data-testid="column"]:first-child .tooltip-text,
+    div[data-testid="column"]:nth-child(2) .tooltip-text {
+        left: 0% !important;
+        transform: translateX(0%) !important;
+    }
+
+    /* Shift tooltip LEFT for right-edge columns */
+    div[data-testid="column"]:last-child .tooltip-text,
+    div[data-testid="column"]:nth-last-child(2) .tooltip-text {
+        left: auto !important;
+        right: 0% !important;
+        transform: translateX(0%) !important;
     }
 
     /* Show Tooltip on Mouseover */
@@ -110,32 +139,14 @@ st.markdown("""
         color: #888;
     }
 
-    /* Pick Cards */
-    .pick-card {
-        padding: 6px 6px;
-        border-radius: 4px;
-        margin-bottom: 4px;
-        text-align: center;
-        font-size: 0.82rem;
-        font-weight: 600;
-        color: white;
-        white-space: nowrap;
-        overflow: hidden;
-        text-overflow: ellipsis;
-        box-shadow: 0 1px 3px rgba(0,0,0,0.25);
-        line-height: 1.3;
+    /* Fix Pick Cards for mobile & desktop */
+    .pick-card, .empty-card {
+        padding: 4px 2px !important;
+        font-size: 0.72rem !important;
+        margin-bottom: 2px !important;
+        line-height: 1.2 !important;
     }
     
-    .empty-card {
-        padding: 6px 6px;
-        border-radius: 4px;
-        margin-bottom: 4px;
-        text-align: center;
-        font-size: 0.82rem;
-        color: #666;
-        border: 1px dashed #444;
-        line-height: 1.3;
-    }
 </style>
 """, unsafe_allow_html=True)
 
