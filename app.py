@@ -162,6 +162,9 @@ def set_league_bbl2():
     st.session_state.custom_league_input = "11004"
     st.session_state.auto_refresh = False
 
+def on_custom_code_change():
+    st.session_state.auto_refresh = False
+    
 # Initialize session_state defaults if not set
 if "custom_league_input" not in st.session_state:
     st.session_state.custom_league_input = "11004"
@@ -171,7 +174,7 @@ top_col1, top_col2 = st.columns([2, 2])
 
 with top_col1:
     st.title("⚽ FPL Live Draft Board")
-    auto_refresh = st.checkbox("Enable Auto-Refresh (10s)", key="auto_refresh", value=False)
+    auto_refresh = st.checkbox("Enable Auto-Refresh (10s)", key="auto_refresh", value=True)
 
 with top_col2:
     st.write("### League Selection")
@@ -180,7 +183,11 @@ with top_col2:
     btn_col1.button("BBL1 (16273)", on_click=set_league_bbl1, use_container_width=True)
     btn_col2.button("BBL2 (11004)", on_click=set_league_bbl2, use_container_width=True)
 
-    league_code = st.text_input("Custom League Code", key="custom_league_input")
+    league_code = st.text_input(
+        "Custom League Code", 
+        key="custom_league_input", 
+        on_change=on_custom_code_change
+    )
 
 if not league_code:
     st.warning("Please enter a valid Draft League Code.")
