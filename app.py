@@ -171,7 +171,7 @@ top_col1, top_col2 = st.columns([2, 2])
 
 with top_col1:
     st.title("⚽ FPL Live Draft Board")
-    auto_refresh = st.checkbox("Enable Auto-Refresh (10s)", key="auto_refresh", value=True)
+    auto_refresh = st.checkbox("Enable Auto-Refresh (10s)", key="auto_refresh", value=False)
 
 with top_col2:
     st.write("### League Selection")
@@ -318,4 +318,3 @@ if st.session_state.auto_refresh:
     time.sleep(10)
     st.rerun()
 
-    
