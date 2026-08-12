@@ -2,7 +2,91 @@ import streamlit as st
 import pandas as pd
 import requests
 
-st.set_page_config(page_title="FPL Draft Tracker", layout="wide")
+st.set_page_config(
+    page_title="FPL Draft Board", 
+    layout="wide", 
+    initial_sidebar_state="collapsed"
+)
+
+# Custom CSS for compact density and instant CSS tooltips
+st.markdown("""
+<style>
+    /* Remove padding around main container for maximum screen space */
+    .block-container {
+        padding-top: 1rem !important;
+        padding-bottom: 0rem !important;
+        padding-left: 1.5rem !important;
+        padding-right: 1.5rem !important;
+    }
+    
+    /* Hover Tooltip Container */
+    .tooltip-header {
+        position: relative;
+        display: inline-block;
+        width: 100%;
+        text-align: center;
+        background-color: #1e1e1e;
+        color: #ffffff;
+        padding: 4px 2px;
+        border-radius: 4px;
+        font-weight: bold;
+        cursor: pointer;
+        border: 1px solid #444;
+    }
+
+    /* Hidden Tooltip Box */
+    .tooltip-header .tooltip-text {
+        visibility: hidden;
+        width: 240px;
+        background-color: #121212;
+        color: #fff;
+        text-align: left;
+        border-radius: 6px;
+        padding: 8px 10px;
+        position: absolute;
+        z-index: 999;
+        top: 100%;
+        left: 50%;
+        transform: translateX(-50%);
+        box-shadow: 0px 4px 12px rgba(0,0,0,0.5);
+        border: 1px solid #333;
+        font-weight: normal;
+        font-size: 0.75rem;
+        line-height: 1.2;
+    }
+
+    /* Show Tooltip on Mouseover */
+    .tooltip-header:hover .tooltip-text {
+        visibility: visible;
+    }
+
+    /* Compact Badge Card */
+    .pick-card {
+        padding: 2px 4px;
+        border-radius: 3px;
+        margin-bottom: 2px;
+        text-align: center;
+        font-size: 0.73rem;
+        font-weight: 600;
+        color: white;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        box-shadow: 0 1px 2px rgba(0,0,0,0.15);
+        line-height: 1.2;
+    }
+    
+    .empty-card {
+        padding: 2px 4px;
+        border-radius: 3px;
+        margin-bottom: 2px;
+        text-align: center;
+        font-size: 0.73rem;
+        color: #666;
+        border: 1px dashed #444;
+    }
+</style>
+""", unsafe_allow_html=True)
 
 LEAGUE_CODE = "25152"  # Update with your league ID
 HEADERS = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"}
@@ -28,12 +112,11 @@ def load_league(league_code):
 def load_draft(league_code):
     return requests.get(f"https://draft.premierleague.com/api/draft/{league_code}/choices", headers=HEADERS).json()
 
-# Setup Data
+# Load Data
 footballers = load_static()
 data, player_data = load_league(LEAGUE_CODE)
 
 id2baller = {x['id']: x['web_name'] for x in footballers['elements']}
-id2pos_id = {x['id']: x['element_type'] for x in footballers['elements']}
 id2pos = {x['id']: POSITION_MAP.get(x['element_type'], "UNK") for x in footballers['elements']}
 id2owner = {x['entry_name']: x['player_first_name'] for x in data['league_entries']}
 
@@ -60,124 +143,81 @@ df['manager'] = df['entry_name'].map(lambda x: id2owner.get(x, x))
 df['player_name'] = df['element'].map(lambda x: id2baller.get(x, "Unknown"))
 df['position'] = df['element'].map(lambda x: id2pos.get(x, "UNK"))
 
-# Layout UI
-st.title("⚽ FPL Live Draft & Team Tracker")
+# Order Managers by Round 1
+round1 = df[df['round'] == 1]
+draft_order = list(round1['manager']) if not round1.empty else list(df['manager'].unique())
+num_cols = len(draft_order)
+max_rounds = int(df['round'].max()) if not df.empty else 15
 
-view_mode = st.radio("Select View:", ["🎯 Draft Board", "👤 Team Rosters"], horizontal=True)
+# Header Columns with Mouseover Hover Tooltips
+header_cols = st.columns(num_cols)
 
-# ---------------------------------------------------------
-# VIEW 1: CARDS DRAFT BOARD
-# ---------------------------------------------------------
-if view_mode == "🎯 Draft Board":
-    st.subheader("Snake Draft Board")
+for idx, manager in enumerate(draft_order):
+    manager_picks = df[df['manager'] == manager]
     
-    round1 = df[df['round'] == 1]
-    draft_order = list(round1['manager']) if not round1.empty else list(df['manager'].unique())
+    # Generate Roster Breakdown HTML for Tooltip
+    roster_lines = []
+    for pos in ["GKP", "DEF", "MID", "FWD"]:
+        pos_players = manager_picks[manager_picks['position'] == pos]['player_name'].tolist()
+        if pos_players:
+            players_str = ", ".join(pos_players)
+            color = POSITION_COLORS.get(pos, "#fff")
+            roster_lines.append(f"<strong style='color:{color}'>{pos}:</strong> {players_str}")
     
-    num_cols = len(draft_order)
-    max_rounds = int(df['round'].max()) if not df.empty else 0
+    tooltip_content = "<br>".join(roster_lines) if roster_lines else "No picks yet"
+    
+    header_cols[idx].markdown(
+        f"""
+        <div class="tooltip-header">
+            {manager}
+            <div class="tooltip-text">
+                <div style="font-weight:bold; border-bottom: 1px solid #444; margin-bottom: 4px; padding-bottom:2px;">
+                    {manager}'s Squad
+                </div>
+                {tooltip_content}
+            </div>
+        </div>
+        """,
+        unsafe_allow_html=True
+    )
 
-    # Header Row with Manager Names
-    header_cols = st.columns(num_cols)
-    for idx, manager in enumerate(draft_order):
-        header_cols[idx].markdown(f"### **{manager}**")
+st.write("") # Micro-spacer
 
-    st.divider()
-
-    # Grid of Rounds
-    for r in range(1, max_rounds + 1):
-        round_df = df[df['round'] == r]
-        is_odd = (r % 2 != 0)
+# Render Single Desktop View Compact Draft Board Grid
+for r in range(1, max_rounds + 1):
+    round_df = df[df['round'] == r]
+    is_odd = (r % 2 != 0)
+    
+    cols = st.columns(num_cols)
+    
+    for c_idx, manager in enumerate(draft_order):
+        pick = round_df[round_df['manager'] == manager]
         
-        cols = st.columns(num_cols)
-        st.caption(f"**Round {r}** {'(→ Right)' if is_odd else '(← Left)'}")
-        
-        for c_idx, manager in enumerate(draft_order):
-            pick = round_df[round_df['manager'] == manager]
-            
-            # Snake Arrows
-            if is_odd:
-                arrow = "↓" if c_idx == num_cols - 1 else "→"
-            else:
-                arrow = "↓" if c_idx == 0 else "←"
+        # Snake Arrows
+        if is_odd:
+            arrow = "↓" if c_idx == num_cols - 1 else "→"
+        else:
+            arrow = "↓" if c_idx == 0 else "←"
 
-            if not pick.empty:
-                p_name = pick.iloc[0]['player_name']
-                p_pos = pick.iloc[0]['position']
-                bg_color = POSITION_COLORS.get(p_pos, "#424242")
-                
-                # Render Individual Styled Card
-                cols[c_idx].markdown(
-                    f"""
-                    <div style="
-                        background-color: {bg_color}; 
-                        color: white; 
-                        padding: 8px; 
-                        border-radius: 6px; 
-                        margin-bottom: 5px; 
-                        text-align: center;
-                        font-weight: bold;
-                        box-shadow: 0 2px 4px rgba(0,0,0,0.2);
-                    ">
-                        <small style="opacity: 0.8;">{p_pos} {arrow}</small><br>
-                        {p_name}
-                    </div>
-                    """, 
-                    unsafe_allow_html=True
-                )
-            else:
-                cols[c_idx].markdown(
-                    f"""
-                    <div style="
-                        border: 1px dashed #ccc; 
-                        padding: 8px; 
-                        border-radius: 6px; 
-                        text-align: center;
-                        color: #888;
-                    ">
-                        {arrow}
-                    </div>
-                    """, 
-                    unsafe_allow_html=True
-                )
-
-# ---------------------------------------------------------
-# VIEW 2: INDIVIDUAL TEAM VIEW
-# ---------------------------------------------------------
-else:
-    st.subheader("Team Roster Explorer")
-    
-    managers = sorted(list(df['manager'].unique()))
-    
-    # Manager selection tabs at top
-    tabs = st.tabs(managers)
-    
-    for idx, manager in enumerate(managers):
-        with tabs[idx]:
-            team_df = df[df['manager'] == manager].copy()
-            st.markdown(f"### **{manager}'s Squad** ({len(team_df)} Players)")
+        if not pick.empty:
+            p_name = pick.iloc[0]['player_name']
+            p_pos = pick.iloc[0]['position']
+            bg_color = POSITION_COLORS.get(p_pos, "#424242")
             
-            # Group by Position
-            col1, col2, col3, col4 = st.columns(4)
-            
-            for pos_name, container in zip(["GKP", "DEF", "MID", "FWD"], [col1, col2, col3, col4]):
-                pos_players = team_df[team_df['position'] == pos_name]
-                container.markdown(f"#### **{pos_name}** ({len(pos_players)})")
-                
-                for _, row in pos_players.iterrows():
-                    bg_color = POSITION_COLORS.get(pos_name, "#424242")
-                    container.markdown(
-                        f"""
-                        <div style="
-                            background-color: {bg_color}; 
-                            color: white; 
-                            padding: 10px; 
-                            border-radius: 6px; 
-                            margin-bottom: 8px;
-                        ">
-                            <strong>{row['player_name']}</strong><br>
-                            <small>Drafted Rd {row['round']}</small>
-                        </div>
-                        """, 
-                        unsafe_allow_html=True
-                    )
+            cols[c_idx].markdown(
+                f"""
+                <div class="pick-card" style="background-color: {bg_color};" title="R{r} P{c_idx+1}: {p_name} ({p_pos})">
+                    {p_name} <span style="opacity:0.75; font-size:0.65rem;">{arrow}</span>
+                </div>
+                """, 
+                unsafe_allow_html=True
+            )
+        else:
+            cols[c_idx].markdown(
+                f"""
+                <div class="empty-card">
+                    {arrow}
+                </div>
+                """, 
+                unsafe_allow_html=True
+            )
