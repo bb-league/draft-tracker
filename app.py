@@ -26,6 +26,14 @@ st.markdown("""
         padding-bottom: 8px;
     }
 
+    /* Fix Pick Cards for mobile & desktop */
+    .pick-card, .empty-card {
+        padding: 4px 2px !important;
+        font-size: 0.72rem !important;
+        margin-bottom: 2px !important;
+        line-height: 1.2 !important;
+    }
+
     /* Mobile specific column sizing */
     @media (max-width: 768px) {
         /* Reduce overall min-width so columns are much narrower */
@@ -106,6 +114,16 @@ st.markdown("""
         transform: translateX(0%) !important;
     }
 
+    /* Ensure parent scroll container allows overflow visibility for hover cards */
+    .mobile-scroll-container {
+        width: 100%;
+        overflow-x: auto;
+        overflow-y: visible !important;
+        -webkit-overflow-scrolling: touch;
+        padding-bottom: 12px;
+        padding-top: 4px;
+    }
+
     /* Show Tooltip on Mouseover */
     .tooltip-header:hover .tooltip-text {
         visibility: visible;
@@ -139,14 +157,32 @@ st.markdown("""
         color: #888;
     }
 
-    /* Fix Pick Cards for mobile & desktop */
-    .pick-card, .empty-card {
-        padding: 4px 2px !important;
-        font-size: 0.72rem !important;
-        margin-bottom: 2px !important;
-        line-height: 1.2 !important;
+    /* Pick Cards */
+    .pick-card {
+        padding: 6px 6px;
+        border-radius: 4px;
+        margin-bottom: 4px;
+        text-align: center;
+        font-size: 0.82rem;
+        font-weight: 600;
+        color: white;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.25);
+        line-height: 1.3;
     }
     
+    .empty-card {
+        padding: 6px 6px;
+        border-radius: 4px;
+        margin-bottom: 4px;
+        text-align: center;
+        font-size: 0.82rem;
+        color: #666;
+        border: 1px dashed #444;
+        line-height: 1.3;
+    }
 </style>
 """, unsafe_allow_html=True)
 
