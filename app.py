@@ -25,7 +25,7 @@ def on_custom_code_change():
 if "custom_league_input" not in st.session_state:
     st.session_state.custom_league_input = "11004"
 
-# Clean CSS Styling
+# Clean CSS Styling + Mobile Horizontal Scroll Override
 st.markdown("""
 <style>
     /* Remove header padding & white bar overlap */
@@ -39,6 +39,42 @@ st.markdown("""
         padding-bottom: 1rem !important;
         padding-left: 0.5rem !important;
         padding-right: 0.5rem !important;
+    }
+
+    /* ----------------------------------------------------------------
+       MOBILE HORIZONTAL SCROLL OVERRIDE
+       ---------------------------------------------------------------- */
+    /* Container wrapper allowing smooth horizontal swiping */
+    .mobile-scroll-wrapper {
+        width: 100%;
+        overflow-x: auto !important;
+        overflow-y: visible !important;
+        -webkit-overflow-scrolling: touch;
+        padding-bottom: 15px;
+    }
+
+    /* Prevent Streamlit from stacking columns vertically on mobile */
+    @media (max-width: 768px) {
+        div[data-testid="stHorizontalBlock"] {
+            display: flex !important;
+            flex-direction: row !important;
+            flex-wrap: nowrap !important;
+            min-width: max-content !important;
+        }
+
+        /* Force columns to stay side-by-side with a compact width */
+        div[data-testid="column"] {
+            min-width: 110px !important;
+            max-width: 120px !important;
+            flex: 1 0 110px !important;
+            padding: 0 2px !important;
+        }
+
+        /* Adjust popover button padding on small screens */
+        button[data-testid="stPopoverButton"] {
+            padding: 4px 2px !important;
+            font-size: 0.75rem !important;
+        }
     }
 
     /* Fixed size pick cards for tight horizontal alignment */
@@ -182,7 +218,7 @@ try:
         ]
 
     df = pd.DataFrame(picks)
-    df['manager'] = df['entry_name'].map(lambda x: id2owner.get(x, x))
+    df['manager'] = df['entry_name'].map(lambda x: id2owner.get(x, x)).fillna("Unknown Manager")
     df['player_name'] = df['element'].map(lambda x: id2baller.get(x, "Unknown"))
     df['position'] = df['element'].map(lambda x: id2pos.get(x, "UNK"))
 
@@ -196,16 +232,17 @@ draft_order = list(round1['manager']) if not round1.empty else list(df['manager'
 num_cols = len(draft_order)
 max_rounds = int(df['round'].max()) if not df.empty else 15
 
-# Header Manager Row using Streamlit Popovers (Guarantees no screen clipping)
+# START MOBILE SCROLL WRAPPER
+st.markdown('<div class="mobile-scroll-wrapper">', unsafe_allow_html=True)
+
+# Header Manager Row using Streamlit Popovers
 header_cols = st.columns(num_cols)
 
 for idx, manager in enumerate(draft_order):
     manager_picks = df[df['manager'] == manager].sort_values(by='round')
     
-    # Ensure label is a non-empty string to avoid StreamlitAPIException
     manager_label = str(manager) if pd.notna(manager) and str(manager).strip() else f"Team {idx + 1}"
     
-    # Render squad view inside popover
     with header_cols[idx].popover(manager_label, use_container_width=True):
         st.markdown(f"**{manager_label}'s Squad**")
         
@@ -266,8 +303,10 @@ for r in range(1, max_rounds + 1):
                 unsafe_allow_html=True
             )
 
+# CLOSE MOBILE SCROLL WRAPPER
+st.markdown('</div>', unsafe_allow_html=True)
+
 # Auto-refresh Loop at Bottom
 if auto_refresh:
     time.sleep(10)
     st.rerun()
-    
