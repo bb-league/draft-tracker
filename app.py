@@ -202,9 +202,12 @@ header_cols = st.columns(num_cols)
 for idx, manager in enumerate(draft_order):
     manager_picks = df[df['manager'] == manager].sort_values(by='round')
     
+    # Ensure label is a non-empty string to avoid StreamlitAPIException
+    manager_label = str(manager) if pd.notna(manager) and str(manager).strip() else f"Team {idx + 1}"
+    
     # Render squad view inside popover
-    with header_cols[idx].popover(manager, use_container_width=True):
-        st.markdown(f"**{manager}'s Squad**")
+    with header_cols[idx].popover(manager_label, use_container_width=True):
+        st.markdown(f"**{manager_label}'s Squad**")
         
         for pos, slot_count in POSITION_SLOTS.items():
             pos_picks = manager_picks[manager_picks['position'] == pos]['player_name'].tolist()
