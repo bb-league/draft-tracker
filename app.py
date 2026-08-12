@@ -9,7 +9,23 @@ st.set_page_config(
     initial_sidebar_state="collapsed"
 )
 
-# Custom CSS fixing white bar overlay and styling visual pitch roster tooltips
+# Callbacks for League Buttons & Custom Input
+def set_league_bbl1():
+    st.session_state.custom_league_input = "16273"
+    st.session_state.auto_refresh = False
+
+def set_league_bbl2():
+    st.session_state.custom_league_input = "11004"
+    st.session_state.auto_refresh = False
+
+def on_custom_code_change():
+    st.session_state.auto_refresh = False
+
+# Initialize session_state defaults
+if "custom_league_input" not in st.session_state:
+    st.session_state.custom_league_input = "11004"
+
+# Custom CSS fixing white bar, pop-up clipping, and mobile alignment
 st.markdown("""
 <style>
     /* Remove white bar padding and fix top clipping */
@@ -17,44 +33,43 @@ st.markdown("""
         background-color: transparent !important;
         z-index: 1 !important;
     }
-
-    /* Fix Pick Cards for mobile & desktop */
-    .pick-card, .empty-card {
-        padding: 4px 2px !important;
-        font-size: 0.72rem !important;
-        margin-bottom: 2px !important;
-        line-height: 1.2 !important;
-    }
-
-    /* Mobile specific column sizing */
-    @media (max-width: 768px) {
-        /* Reduce overall min-width so columns are much narrower */
-        div[data-testid="stHorizontalBlock"] {
-            flex-wrap: nowrap !important;
-            min-width: max-content !important; 
-        }
-        
-        /* Force individual Streamlit column wrappers to stay compact */
-        div[data-testid="column"] {
-            min-width: 105px !important;
-            max-width: 120px !important;
-            padding: 0 2px !important;
-        }
-
-        .tooltip-header {
-            font-size: 0.8rem !important;
-            padding: 5px 2px !important;
-        }
-    }
-
+    
     .block-container {
-        padding-top: 2rem !important;
+        padding-top: 1.5rem !important;
         padding-bottom: 1rem !important;
-        padding-left: 1.5rem !important;
-        padding-right: 1.5rem !important;
+        padding-left: 1rem !important;
+        padding-right: 1rem !important;
+        overflow: visible !important;
     }
 
-    /* Hover Tooltip Header Button */
+    /* Scroll Container for Mobile - Keeps Columns Side-by-Side */
+    .mobile-scroll-container {
+        width: 100%;
+        overflow-x: auto;
+        overflow-y: visible !important;
+        -webkit-overflow-scrolling: touch;
+        padding-bottom: 20px;
+        padding-top: 5px;
+    }
+
+    /* Target Streamlit columns to align strictly and prevent staggering */
+    div[data-testid="stHorizontalBlock"] {
+        display: flex !important;
+        flex-direction: row !important;
+        flex-wrap: nowrap !important;
+        align-items: stretch !important;
+        min-width: max-content !important;
+    }
+
+    div[data-testid="column"] {
+        min-width: 110px !important;
+        max-width: 120px !important;
+        flex: 1 0 110px !important;
+        padding: 0 2px !important;
+        position: relative !important;
+    }
+
+    /* Manager Header Card */
     .tooltip-header {
         position: relative;
         display: block;
@@ -62,43 +77,48 @@ st.markdown("""
         text-align: center;
         background-color: #1e1e1e;
         color: #ffffff;
-        padding: 8px 4px;
+        padding: 6px 2px;
         border-radius: 6px;
         font-weight: bold;
-        font-size: 0.95rem;
+        font-size: 0.82rem;
         cursor: pointer;
         border: 1px solid #444;
         box-shadow: 0px 2px 4px rgba(0,0,0,0.3);
+        margin-bottom: 6px;
+        box-sizing: border-box;
     }
 
-    /* Base Tooltip Box */
+    /* Base Hover Tooltip Box */
     .tooltip-header .tooltip-text {
         visibility: hidden;
-        width: 270px; /* Sized down slightly for mobile safety */
+        width: 270px;
         background-color: #121212;
         color: #fff;
         text-align: center;
         border-radius: 8px;
-        padding: 8px;
+        padding: 10px;
         position: absolute;
         z-index: 999999 !important;
-        top: 110%;
+        top: 105%;
         left: 50%;
         transform: translateX(-50%);
-        box-shadow: 0px 8px 24px rgba(0,0,0,0.9);
-        border: 1px solid #444;
+        box-shadow: 0px 8px 24px rgba(0,0,0,0.95);
+        border: 1px solid #555;
         font-weight: normal;
         pointer-events: none;
     }
 
-    /* Shift tooltip RIGHT for left-edge columns */
+    .tooltip-header:hover .tooltip-text {
+        visibility: visible;
+    }
+
+    /* Prevent Edge Pop-up Clipping (Desktop & Mobile) */
     div[data-testid="column"]:first-child .tooltip-text,
     div[data-testid="column"]:nth-child(2) .tooltip-text {
         left: 0% !important;
         transform: translateX(0%) !important;
     }
 
-    /* Shift tooltip LEFT for right-edge columns */
     div[data-testid="column"]:last-child .tooltip-text,
     div[data-testid="column"]:nth-last-child(2) .tooltip-text {
         left: auto !important;
@@ -106,35 +126,19 @@ st.markdown("""
         transform: translateX(0%) !important;
     }
 
-    /* Ensure parent scroll container allows overflow visibility for hover cards */
-    .mobile-scroll-container {
-        width: 100%;
-        overflow-x: auto;
-        overflow-y: visible !important;
-        -webkit-overflow-scrolling: touch;
-        padding-bottom: 12px;
-        padding-top: 4px;
-    }
-
-    /* Show Tooltip on Mouseover */
-    .tooltip-header:hover .tooltip-text {
-        visibility: visible;
-    }
-
-    /* Formation Pitch Rows */
+    /* Formation Pitch Layout */
     .pitch-row {
         display: flex;
         justify-content: center;
-        gap: 4px;
-        margin-bottom: 6px;
+        gap: 3px;
+        margin-bottom: 5px;
     }
 
-    /* Individual Formation Badges */
     .pitch-badge {
         flex: 1;
-        padding: 4px 2px;
+        padding: 3px 1px;
         border-radius: 4px;
-        font-size: 0.68rem;
+        font-size: 0.65rem;
         font-weight: bold;
         color: white;
         white-space: nowrap;
@@ -146,34 +150,38 @@ st.markdown("""
     .pitch-badge-empty {
         background-color: #000000;
         border: 1px dashed #555;
-        color: #888;
+        color: #777;
     }
 
     /* Pick Cards */
     .pick-card {
-        padding: 6px 6px;
+        padding: 5px 3px;
         border-radius: 4px;
         margin-bottom: 4px;
         text-align: center;
-        font-size: 0.82rem;
+        font-size: 0.75rem;
         font-weight: 600;
         color: white;
         white-space: nowrap;
         overflow: hidden;
         text-overflow: ellipsis;
         box-shadow: 0 1px 3px rgba(0,0,0,0.25);
-        line-height: 1.3;
+        line-height: 1.2;
+        height: 28px;
+        box-sizing: border-box;
     }
     
     .empty-card {
-        padding: 6px 6px;
+        padding: 5px 3px;
         border-radius: 4px;
         margin-bottom: 4px;
         text-align: center;
-        font-size: 0.82rem;
+        font-size: 0.75rem;
         color: #666;
         border: 1px dashed #444;
-        line-height: 1.3;
+        line-height: 1.2;
+        height: 28px;
+        box-sizing: border-box;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -208,23 +216,7 @@ def load_league(league_code):
 def load_draft(league_code):
     return requests.get(f"https://draft.premierleague.com/api/draft/{league_code}/choices", headers=HEADERS).json()
 
-# Callbacks for League Buttons (safely modifies session_state before rerun)
-def set_league_bbl1():
-    st.session_state.custom_league_input = "16273"
-    st.session_state.auto_refresh = False
-
-def set_league_bbl2():
-    st.session_state.custom_league_input = "11004"
-    st.session_state.auto_refresh = False
-
-def on_custom_code_change():
-    st.session_state.auto_refresh = False
-
-# Initialize session_state defaults if not set
-if "custom_league_input" not in st.session_state:
-    st.session_state.custom_league_input = "11004"
-
-# Header Layout
+# Header Area with Title & Dynamic Buttons
 top_col1, top_col2 = st.columns([2, 2])
 
 with top_col1:
@@ -240,7 +232,7 @@ with top_col2:
 
     league_code = st.text_input(
         "Custom League Code", 
-        key="custom_league_input", 
+        key="custom_league_input",
         on_change=on_custom_code_change
     )
 
@@ -289,10 +281,10 @@ draft_order = list(round1['manager']) if not round1.empty else list(df['manager'
 num_cols = len(draft_order)
 max_rounds = int(df['round'].max()) if not df.empty else 15
 
-# Start mobile scroll container wrapper
+# Wrap Entire Board in Scroll Container
 st.markdown('<div class="mobile-scroll-container">', unsafe_allow_html=True)
 
-# Header Columns with Squad Visual Tooltips
+# Render Header Manager Columns
 header_cols = st.columns(num_cols)
 
 for idx, manager in enumerate(draft_order):
@@ -327,7 +319,7 @@ for idx, manager in enumerate(draft_order):
         <div class="tooltip-header">
             {manager}
             <div class="tooltip-text">
-                <div style="font-weight:bold; border-bottom: 1px solid #444; margin-bottom: 8px; padding-bottom:4px;">
+                <div style="font-weight:bold; border-bottom: 1px solid #444; margin-bottom: 6px; padding-bottom:3px;">
                     {manager}'s Squad
                 </div>
                 {full_pitch_html}
@@ -337,9 +329,7 @@ for idx, manager in enumerate(draft_order):
         unsafe_allow_html=True
     )
 
-st.write("") # Micro-spacer
-
-# Render Grid
+# Render Grid Rows
 for r in range(1, max_rounds + 1):
     round_df = df[df['round'] == r]
     is_odd = (r % 2 != 0)
@@ -363,7 +353,7 @@ for r in range(1, max_rounds + 1):
             cols[c_idx].markdown(
                 f"""
                 <div class="pick-card" style="background-color: {bg_color};" title="R{r} P{c_idx+1}: {p_name} ({p_pos})">
-                    {p_name} <span style="opacity:0.8; font-size:0.75rem;">{arrow}</span>
+                    {p_name} <span style="opacity:0.8; font-size:0.7rem;">{arrow}</span>
                 </div>
                 """, 
                 unsafe_allow_html=True
@@ -378,11 +368,11 @@ for r in range(1, max_rounds + 1):
                 unsafe_allow_html=True
             )
 
-# Close mobile scroll container wrapper
+# Close Scroll Container
 st.markdown('</div>', unsafe_allow_html=True)
 
-# Auto-refresh Loop at the Bottom
-if st.session_state.auto_refresh:
+# Auto-refresh Loop at Bottom
+if auto_refresh:
     time.sleep(10)
     st.rerun()
-
+    
