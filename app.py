@@ -50,7 +50,7 @@ st.markdown("""
         padding-bottom: 20px;
     }
 
-    /* Force Streamlit Columns to stay side-by-side & narrow on mobile */
+    /* Force Streamlit Columns to stay side-by-side */
     div[data-testid="stHorizontalBlock"] {
         display: flex !important;
         flex-direction: row !important;
@@ -60,90 +60,120 @@ st.markdown("""
         min-width: 100% !important;
     }
 
-    div[data-testid="column"] {
-        width: 88px !important;
-        min-width: 88px !important;
-        max-width: 88px !important;
-        flex: 0 0 88px !important;
-        padding: 0 1px !important;
-        box-sizing: border-box !important;
+    /* ----------------------------------------------------------------
+       MOBILE-ONLY NARROW COLUMNS (< 768px)
+       ---------------------------------------------------------------- */
+    @media (max-width: 768px) {
+        div[data-testid="column"] {
+            width: 68px !important;
+            min-width: 68px !important;
+            max-width: 68px !important;
+            flex: 0 0 68px !important;
+            padding: 0 1px !important;
+            box-sizing: border-box !important;
+        }
+
+        .pick-card, .empty-card {
+            padding: 2px 1px !important;
+            font-size: 0.62rem !important;
+            height: 26px !important;
+            line-height: 20px !important;
+        }
+
+        button[data-testid="stPopoverButton"] {
+            padding: 1px 1px !important;
+            font-size: 0.62rem !important;
+            height: 26px !important;
+        }
     }
 
-    /* Fixed Narrow Pick Card Sizing */
+    /* ----------------------------------------------------------------
+       DESKTOP DEFAULTS (≥ 769px)
+       ---------------------------------------------------------------- */
+    @media (min-width: 769px) {
+        div[data-testid="column"] {
+            width: 110px !important;
+            min-width: 110px !important;
+            max-width: 110px !important;
+            flex: 0 0 110px !important;
+            padding: 0 2px !important;
+            box-sizing: border-box !important;
+        }
+
+        .pick-card, .empty-card {
+            padding: 3px 2px;
+            font-size: 0.72rem;
+            height: 30px;
+            line-height: 22px;
+        }
+
+        button[data-testid="stPopoverButton"] {
+            padding: 2px 2px !important;
+            font-size: 0.75rem !important;
+            height: 30px !important;
+        }
+    }
+
     .pick-card {
-        padding: 3px 1px;
         border-radius: 4px;
         margin-bottom: 3px;
         text-align: center;
-        font-size: 0.68rem;
         font-weight: 600;
         color: white;
         white-space: nowrap;
         overflow: hidden;
         text-overflow: ellipsis;
         box-shadow: 0 1px 3px rgba(0,0,0,0.25);
-        height: 28px;
-        line-height: 22px;
         box-sizing: border-box;
     }
     
     .empty-card {
-        padding: 3px 1px;
         border-radius: 4px;
         margin-bottom: 3px;
         text-align: center;
-        font-size: 0.68rem;
         color: #666;
         border: 1px dashed #444;
-        height: 28px;
-        line-height: 22px;
         box-sizing: border-box;
     }
 
     /* Compact Popover Toggle Button */
     button[data-testid="stPopoverButton"] {
-        padding: 2px 1px !important;
-        font-size: 0.7rem !important;
         white-space: nowrap;
         overflow: hidden;
         text-overflow: ellipsis;
-        height: 30px !important;
     }
 
-    /* --- POPOVER CONTENT SIZE OVERRIDES --- */
-    /* Break out of column width constraints for the popover panel */
+    /* --- POPOVER CONTENT SIZE OVERRIDES (Expanded View) --- */
     div[data-testid="stPopoverBody"] {
         width: 560px !important;
-        min-width: 320px !important;
-        max-width: 90vw !important;
+        min-width: 300px !important;
+        max-width: 92vw !important;
         padding: 12px !important;
     }
 
-    /* Larger text and elements inside the squad popover */
     div[data-testid="stPopoverBody"] p,
     div[data-testid="stPopoverBody"] strong {
         font-size: 0.95rem !important;
     }
 
-    /* Expanded Pitch Badges inside Popover */
     .pitch-row {
         display: flex;
         justify-content: center;
-        gap: 6px;
-        margin-bottom: 8px;
+        gap: 4px;
+        margin-bottom: 6px;
     }
 
     .pitch-badge {
         flex: 1;
-        padding: 6px 4px;
+        padding: 5px 3px;
         border-radius: 4px;
-        font-size: 0.82rem;
+        font-size: 0.78rem;
         font-weight: bold;
         color: white;
-        white-space: nowrap;
-        overflow: hidden;
-        text-overflow: ellipsis;
         text-align: center;
+        white-space: normal !important; 
+        word-break: break-word;
+        line-height: 1.15;
     }
 
     .pitch-badge-empty {
