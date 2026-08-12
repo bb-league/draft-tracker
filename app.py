@@ -100,7 +100,7 @@ st.markdown("""
         box-sizing: border-box;
     }
 
-    /* Popover button compact styling */
+    /* Compact Popover Toggle Button */
     button[data-testid="stPopoverButton"] {
         padding: 2px 1px !important;
         font-size: 0.7rem !important;
@@ -110,19 +110,34 @@ st.markdown("""
         height: 30px !important;
     }
 
-    /* Roster Pitch Badges inside Popover */
+    /* --- POPOVER CONTENT SIZE OVERRIDES --- */
+    /* Break out of column width constraints for the popover panel */
+    div[data-testid="stPopoverBody"] {
+        width: 280px !important;
+        min-width: 280px !important;
+        max-width: 90vw !important;
+        padding: 12px !important;
+    }
+
+    /* Larger text and elements inside the squad popover */
+    div[data-testid="stPopoverBody"] p,
+    div[data-testid="stPopoverBody"] strong {
+        font-size: 0.95rem !important;
+    }
+
+    /* Expanded Pitch Badges inside Popover */
     .pitch-row {
         display: flex;
         justify-content: center;
-        gap: 3px;
-        margin-bottom: 5px;
+        gap: 6px;
+        margin-bottom: 8px;
     }
 
     .pitch-badge {
         flex: 1;
-        padding: 3px 1px;
-        border-radius: 3px;
-        font-size: 0.68rem;
+        padding: 6px 4px;
+        border-radius: 4px;
+        font-size: 0.82rem;
         font-weight: bold;
         color: white;
         white-space: nowrap;
