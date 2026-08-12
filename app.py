@@ -37,8 +37,8 @@ st.markdown("""
     .block-container {
         padding-top: 1.5rem !important;
         padding-bottom: 1rem !important;
-        padding-left: 0.5rem !important;
-        padding-right: 0.5rem !important;
+        padding-left: 0.25rem !important;
+        padding-right: 0.25rem !important;
     }
 
     /* Mobile Side-Scroll Wrapper */
@@ -50,7 +50,7 @@ st.markdown("""
         padding-bottom: 20px;
     }
 
-    /* Force Streamlit Columns to stay side-by-side & align strictly */
+    /* Force Streamlit Columns to stay side-by-side & narrow on mobile */
     div[data-testid="stHorizontalBlock"] {
         display: flex !important;
         flex-direction: row !important;
@@ -61,67 +61,68 @@ st.markdown("""
     }
 
     div[data-testid="column"] {
-        width: 110px !important;
-        min-width: 110px !important;
-        max-width: 110px !important;
-        flex: 0 0 110px !important;
-        padding: 0 2px !important;
+        width: 88px !important;
+        min-width: 88px !important;
+        max-width: 88px !important;
+        flex: 0 0 88px !important;
+        padding: 0 1px !important;
         box-sizing: border-box !important;
     }
 
-    /* Fixed Pick Card Sizing for Strict Alignment */
+    /* Fixed Narrow Pick Card Sizing */
     .pick-card {
-        padding: 4px 2px;
+        padding: 3px 1px;
         border-radius: 4px;
-        margin-bottom: 4px;
+        margin-bottom: 3px;
         text-align: center;
-        font-size: 0.73rem;
+        font-size: 0.68rem;
         font-weight: 600;
         color: white;
         white-space: nowrap;
         overflow: hidden;
         text-overflow: ellipsis;
         box-shadow: 0 1px 3px rgba(0,0,0,0.25);
-        height: 30px;
+        height: 28px;
         line-height: 22px;
         box-sizing: border-box;
     }
     
     .empty-card {
-        padding: 4px 2px;
+        padding: 3px 1px;
         border-radius: 4px;
-        margin-bottom: 4px;
+        margin-bottom: 3px;
         text-align: center;
-        font-size: 0.73rem;
+        font-size: 0.68rem;
         color: #666;
         border: 1px dashed #444;
-        height: 30px;
+        height: 28px;
         line-height: 22px;
         box-sizing: border-box;
     }
 
     /* Popover button compact styling */
     button[data-testid="stPopoverButton"] {
-        padding: 4px 2px !important;
-        font-size: 0.75rem !important;
-        white-space: nowrap !overflow: hidden;
+        padding: 2px 1px !important;
+        font-size: 0.7rem !important;
+        white-space: nowrap;
+        overflow: hidden;
         text-overflow: ellipsis;
-        height: 32px !important;
+        height: 30px !important;
     }
 
     /* Roster Pitch Badges inside Popover */
     .pitch-row {
         display: flex;
         justify-content: center;
-        gap: 4px;
-        margin-bottom: 6px;
+        gap: 3px;
+        margin-bottom: 5px;
     }
 
     .pitch-badge {
         flex: 1;
-        padding: 4px 2px;
-        border-radius: 4px;
-        font-size: 0.7rem;
+        padding: 3px 1px;
+        border-radius: 3px;
+        font-size: 0.68rem;
         font-weight: bold;
         color: white;
         white-space: nowrap;
@@ -200,7 +201,6 @@ try:
     id2baller = {x['id']: x['web_name'] for x in footballers['elements']}
     id2pos = {x['id']: POSITION_MAP.get(x['element_type'], "UNK") for x in footballers['elements']}
     
-    # Map entry ID to Manager name
     entry2owner = {x['entry_id']: x['player_first_name'] for x in data['league_entries']}
     entry2name = {x['entry_id']: x['entry_name'] for x in data['league_entries']}
 
@@ -236,10 +236,15 @@ except Exception as e:
     st.error(f"Error fetching data for league code {league_code}. Please check the ID.")
     st.stop()
 
-# Build Draft Order based on League Entries order
-league_entries = data['league_entries']
-draft_order = [x['player_first_name'] for x in league_entries]
-entry_ids = [x['entry_id'] for x in league_entries]
+# Correct Round 1 Pick Sequence
+# Derives draft_order strictly from Round 1 choice order so pick #1 is in column 1
+if not df.empty and 'round' in df.columns and 1 in df['round'].values:
+    round1_df = df[df['round'] == 1].sort_values(by='choice' if 'choice' in df.columns else 'index', ascending=True)
+    entry_ids = list(round1_df['entry'].unique())
+else:
+    entry_ids = [x['entry_id'] for x in data['league_entries']]
+
+draft_order = [entry2owner.get(eid, entry2name.get(eid, f"Team {idx+1}")) for idx, eid in enumerate(entry_ids)]
 num_cols = len(draft_order)
 max_rounds = 15
 
@@ -299,7 +304,7 @@ for r in range(1, max_rounds + 1):
             cols[c_idx].markdown(
                 f"""
                 <div class="pick-card" style="background-color: {bg_color};" title="R{r} P{c_idx+1}: {p_name} ({p_pos})">
-                    {p_name} <span style="opacity:0.8; font-size:0.65rem;">{arrow}</span>
+                    {p_name} <span style="opacity:0.8; font-size:0.6rem;">{arrow}</span>
                 </div>
                 """, 
                 unsafe_allow_html=True
