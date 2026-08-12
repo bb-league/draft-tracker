@@ -25,10 +25,10 @@ def on_custom_code_change():
 if "custom_league_input" not in st.session_state:
     st.session_state.custom_league_input = "11004"
 
-# Base Styling
+# Clean CSS Styling
 st.markdown("""
 <style>
-    /* Remove white bar padding and fix top clipping */
+    /* Remove header padding & white bar overlap */
     header[data-testid="stHeader"] {
         background-color: transparent !important;
         z-index: 1 !important;
@@ -41,89 +41,50 @@ st.markdown("""
         padding-right: 0.5rem !important;
     }
 
-    /* Scrollable Container on Mobile */
-    .board-wrapper {
-        width: 100%;
-        overflow-x: auto;
-        padding-top: 10px;
-        padding-bottom: 25px;
-        -webkit-overflow-scrolling: touch;
-    }
-
-    /* Unified Grid Table - Guarantees Strict Vertical Column Alignment */
-    .draft-grid {
-        display: grid;
-        grid-gap: 4px;
-        width: max-content;
-        margin: 0 auto;
-    }
-
-    /* Manager Header Button */
-    .manager-card {
-        position: relative;
-        background-color: #1e1e1e;
-        color: #ffffff;
-        padding: 6px 2px;
-        border-radius: 6px;
-        font-weight: bold;
-        font-size: 0.8rem;
+    /* Fixed size pick cards for tight horizontal alignment */
+    .pick-card {
+        padding: 4px 2px;
+        border-radius: 4px;
+        margin-bottom: 4px;
         text-align: center;
-        border: 1px solid #444;
-        box-shadow: 0px 2px 4px rgba(0,0,0,0.3);
-        cursor: pointer;
+        font-size: 0.75rem;
+        font-weight: 600;
+        color: white;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.25);
+        height: 32px;
+        line-height: 24px;
+        box-sizing: border-box;
+    }
+    
+    .empty-card {
+        padding: 4px 2px;
+        border-radius: 4px;
+        margin-bottom: 4px;
+        text-align: center;
+        font-size: 0.75rem;
+        color: #666;
+        border: 1px dashed #444;
+        height: 32px;
+        line-height: 24px;
         box-sizing: border-box;
     }
 
-    /* Fixed Tooltip Positioning - Stays On-Screen */
-    .manager-card .squad-tooltip {
-        visibility: hidden;
-        width: 250px;
-        background-color: #121212;
-        color: #fff;
-        text-align: center;
-        border-radius: 8px;
-        padding: 10px;
-        position: absolute;
-        z-index: 9999999 !important;
-        top: 110%;
-        left: 50%;
-        transform: translateX(-50%);
-        box-shadow: 0px 8px 24px rgba(0,0,0,0.95);
-        border: 1px solid #555;
-        font-weight: normal;
-        pointer-events: none;
-    }
-
-    /* Hover State */
-    .manager-card:hover .squad-tooltip {
-        visibility: visible;
-    }
-
-    /* Edge Tooltip Offsets to Prevent Off-Screen Clipping */
-    .manager-card.edge-left .squad-tooltip {
-        left: 0% !important;
-        transform: translateX(0%) !important;
-    }
-
-    .manager-card.edge-right .squad-tooltip {
-        left: auto !important;
-        right: 0% !important;
-        transform: translateX(0%) !important;
-    }
-
-    /* Pitch Rows Inside Tooltip */
+    /* Roster Pitch Badges inside Popover */
     .pitch-row {
         display: flex;
         justify-content: center;
-        gap: 3px;
-        margin-bottom: 4px;
+        gap: 4px;
+        margin-bottom: 6px;
     }
 
     .pitch-badge {
         flex: 1;
-        padding: 3px 1px;
-        border-radius: 3px;
-        font-size: 0.65rem;
+        padding: 4px 2px;
+        border-radius: 4px;
+        font-size: 0.7rem;
         font-weight: bold;
         color: white;
         white-space: nowrap;
@@ -136,35 +97,6 @@ st.markdown("""
         background-color: #000000;
         border: 1px dashed #555;
         color: #777;
-    }
-
-    /* Pick Box Cells */
-    .pick-cell {
-        padding: 5px 2px;
-        border-radius: 4px;
-        text-align: center;
-        font-size: 0.74rem;
-        font-weight: 600;
-        color: white;
-        white-space: nowrap;
-        overflow: hidden;
-        text-overflow: ellipsis;
-        box-shadow: 0 1px 3px rgba(0,0,0,0.25);
-        height: 28px;
-        box-sizing: border-box;
-        line-height: 1.3;
-    }
-
-    .empty-cell {
-        padding: 5px 2px;
-        border-radius: 4px;
-        text-align: center;
-        font-size: 0.74rem;
-        color: #666;
-        border: 1px dashed #444;
-        height: 28px;
-        box-sizing: border-box;
-        line-height: 1.3;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -264,54 +196,40 @@ draft_order = list(round1['manager']) if not round1.empty else list(df['manager'
 num_cols = len(draft_order)
 max_rounds = int(df['round'].max()) if not df.empty else 15
 
-# Build Pure HTML Grid Engine
-grid_html = [f'<div class="board-wrapper"><div class="draft-grid" style="grid-template-columns: repeat({num_cols}, minmax(100px, 110px));">']
+# Header Manager Row using Streamlit Popovers (Guarantees no screen clipping)
+header_cols = st.columns(num_cols)
 
-# Row 1: Manager Headers & Pitch Hover Popups
 for idx, manager in enumerate(draft_order):
     manager_picks = df[df['manager'] == manager].sort_values(by='round')
     
-    # Classify Edge Columns to keep popups on-screen
-    edge_class = ""
-    if idx <= 1:
-        edge_class = "edge-left"
-    elif idx >= num_cols - 2:
-        edge_class = "edge-right"
-
-    # Pitch Rows (GKP:2, DEF:5, MID:5, FWD:3)
-    pitch_html_rows = []
-    for pos, slot_count in POSITION_SLOTS.items():
-        pos_picks = manager_picks[manager_picks['position'] == pos]['player_name'].tolist()
-        bg_color = POSITION_COLORS.get(pos, "#424242")
+    # Render squad view inside popover
+    with header_cols[idx].popover(manager, use_container_width=True):
+        st.markdown(f"**{manager}'s Squad**")
         
-        row_badges = []
-        for slot in range(slot_count):
-            if slot < len(pos_picks):
-                p_name = pos_picks[slot]
-                row_badges.append(f'<div class="pitch-badge" style="background-color: {bg_color};" title="{p_name}">{p_name}</div>')
-            else:
-                row_badges.append('<div class="pitch-badge pitch-badge-empty">?</div>')
-        
-        pitch_html_rows.append(f'<div class="pitch-row">{"".join(row_badges)}</div>')
-    
-    full_pitch_html = "".join(pitch_html_rows)
-    
-    grid_html.append(f"""
-        <div class="manager-card {edge_class}">
-            {manager}
-            <div class="squad-tooltip">
-                <div style="font-weight:bold; border-bottom: 1px solid #444; margin-bottom: 6px; padding-bottom:3px;">
-                    {manager}'s Squad
-                </div>
-                {full_pitch_html}
-            </div>
-        </div>
-    """)
+        for pos, slot_count in POSITION_SLOTS.items():
+            pos_picks = manager_picks[manager_picks['position'] == pos]['player_name'].tolist()
+            bg_color = POSITION_COLORS.get(pos, "#424242")
+            
+            row_badges = []
+            for slot in range(slot_count):
+                if slot < len(pos_picks):
+                    p_name = pos_picks[slot]
+                    row_badges.append(
+                        f'<div class="pitch-badge" style="background-color: {bg_color};" title="{p_name}">{p_name}</div>'
+                    )
+                else:
+                    row_badges.append('<div class="pitch-badge pitch-badge-empty">?</div>')
+            
+            st.markdown(f'<div class="pitch-row">{"".join(row_badges)}</div>', unsafe_allow_html=True)
 
-# Rows 2 to Max: Round Picks Grid
+st.write("") # Spacer
+
+# Draft Grid Rows
 for r in range(1, max_rounds + 1):
     round_df = df[df['round'] == r]
     is_odd = (r % 2 != 0)
+    
+    cols = st.columns(num_cols)
     
     for c_idx, manager in enumerate(draft_order):
         pick = round_df[round_df['manager'] == manager]
@@ -327,26 +245,26 @@ for r in range(1, max_rounds + 1):
             p_pos = pick.iloc[0]['position']
             bg_color = POSITION_COLORS.get(p_pos, "#424242")
             
-            grid_html.append(f"""
-                <div class="pick-cell" style="background-color: {bg_color};" title="R{r} P{c_idx+1}: {p_name} ({p_pos})">
-                    {p_name} <span style="opacity:0.8; font-size:0.68rem;">{arrow}</span>
+            cols[c_idx].markdown(
+                f"""
+                <div class="pick-card" style="background-color: {bg_color};" title="R{r} P{c_idx+1}: {p_name} ({p_pos})">
+                    {p_name} <span style="opacity:0.8; font-size:0.7rem;">{arrow}</span>
                 </div>
-            """)
+                """, 
+                unsafe_allow_html=True
+            )
         else:
-            grid_html.append(f"""
-                <div class="empty-cell">
+            cols[c_idx].markdown(
+                f"""
+                <div class="empty-card">
                     {arrow}
                 </div>
-            """)
-
-grid_html.append('</div></div>')
-
-# Render Entire Grid HTML Block
-st.markdown("".join(grid_html), unsafe_allow_html=True)
+                """, 
+                unsafe_allow_html=True
+            )
 
 # Auto-refresh Loop at Bottom
 if auto_refresh:
     time.sleep(10)
     st.rerun()
-
     
