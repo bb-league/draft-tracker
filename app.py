@@ -8,20 +8,20 @@ st.set_page_config(
     initial_sidebar_state="collapsed"
 )
 
-# Custom CSS for balanced sizing and layout
+# Custom CSS fixing white bar overlay and styling visual pitch roster tooltips
 st.markdown("""
 <style>
-    /* Clean container padding */
+    /* Remove white bar padding and fix top clipping */
+    header[data-testid="stHeader"] {
+        background-color: transparent !important;
+        z-index: 1 !important;
+    }
+    
     .block-container {
-        padding-top: 1.5rem !important;
+        padding-top: 2rem !important;
         padding-bottom: 1rem !important;
         padding-left: 1.5rem !important;
         padding-right: 1.5rem !important;
-    }
-    
-    /* Header Container - Prevent clipping and give space */
-    .header-row-container {
-        margin-bottom: 12px;
     }
 
     /* Hover Tooltip Header Button */
@@ -32,34 +32,32 @@ st.markdown("""
         text-align: center;
         background-color: #1e1e1e;
         color: #ffffff;
-        padding: 6px 4px;
-        border-radius: 5px;
+        padding: 8px 4px;
+        border-radius: 6px;
         font-weight: bold;
-        font-size: 0.9rem;
+        font-size: 0.95rem;
         cursor: pointer;
         border: 1px solid #444;
-        box-shadow: 0px 2px 4px rgba(0,0,0,0.2);
+        box-shadow: 0px 2px 4px rgba(0,0,0,0.3);
     }
 
-    /* Hidden Tooltip Box */
+    /* Pitch Visual Tooltip Box */
     .tooltip-header .tooltip-text {
         visibility: hidden;
-        width: 250px;
+        width: 320px;
         background-color: #121212;
         color: #fff;
-        text-align: left;
-        border-radius: 6px;
-        padding: 10px 12px;
+        text-align: center;
+        border-radius: 8px;
+        padding: 12px;
         position: absolute;
-        z-index: 9999;
+        z-index: 99999 !important;
         top: 110%;
         left: 50%;
         transform: translateX(-50%);
-        box-shadow: 0px 6px 16px rgba(0,0,0,0.6);
+        box-shadow: 0px 8px 24px rgba(0,0,0,0.8);
         border: 1px solid #333;
         font-weight: normal;
-        font-size: 0.8rem;
-        line-height: 1.35;
     }
 
     /* Show Tooltip on Mouseover */
@@ -67,7 +65,35 @@ st.markdown("""
         visibility: visible;
     }
 
-    /* 1.5x Larger Card Sizing */
+    /* Formation Pitch Rows */
+    .pitch-row {
+        display: flex;
+        justify-content: center;
+        gap: 4px;
+        margin-bottom: 6px;
+    }
+
+    /* Individual Formation Badges */
+    .pitch-badge {
+        flex: 1;
+        padding: 4px 2px;
+        border-radius: 4px;
+        font-size: 0.68rem;
+        font-weight: bold;
+        color: white;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        text-align: center;
+    }
+
+    .pitch-badge-empty {
+        background-color: #000000;
+        border: 1px dashed #555;
+        color: #888;
+    }
+
+    /* Pick Cards */
     .pick-card {
         padding: 6px 6px;
         border-radius: 4px;
@@ -96,7 +122,6 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-LEAGUE_CODE = "25152"  # Update with your league ID
 HEADERS = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"}
 
 POSITION_MAP = {1: "GKP", 2: "DEF", 3: "MID", 4: "FWD"}
@@ -105,6 +130,13 @@ POSITION_COLORS = {
     "DEF": "#e65100",  # Dark Orange
     "MID": "#1565c0",  # Dark Blue
     "FWD": "#c62828",  # Dark Red
+}
+
+POSITION_SLOTS = {
+    "GKP": 2,
+    "DEF": 5,
+    "MID": 5,
+    "FWD": 3
 }
 
 @st.cache_data(ttl=3600)
@@ -120,69 +152,99 @@ def load_league(league_code):
 def load_draft(league_code):
     return requests.get(f"https://draft.premierleague.com/api/draft/{league_code}/choices", headers=HEADERS).json()
 
-# Load Data
-footballers = load_static()
-data, player_data = load_league(LEAGUE_CODE)
+# Header Area with Title & Dynamic League Code Input Box
+top_col1, top_col2 = st.columns([3, 1])
 
-id2baller = {x['id']: x['web_name'] for x in footballers['elements']}
-id2pos = {x['id']: POSITION_MAP.get(x['element_type'], "UNK") for x in footballers['elements']}
-id2owner = {x['entry_name']: x['player_first_name'] for x in data['league_entries']}
+with top_col1:
+    st.title("⚽ FPL Live Draft Board")
 
-# Fetch picks
+with top_col2:
+    league_code = st.text_input("League Code", value="25152")
+
+if not league_code:
+    st.warning("Please enter a valid Draft League Code.")
+    st.stop()
+
+# Load API Data
 try:
-    choices = load_draft(LEAGUE_CODE)
-    picks = choices.get('choices', [])
-except Exception:
-    picks = []
+    footballers = load_static()
+    data, player_data = load_league(league_code)
 
-if not picks and 'element_status' in player_data:
-    entries_count = len(data['league_entries'])
-    picks = [
-        {
-            'element': item['element'],
-            'entry_name': item['owner'],
-            'round': (idx // entries_count) + 1
-        }
-        for idx, item in enumerate(player_data['element_status'])
-    ]
+    id2baller = {x['id']: x['web_name'] for x in footballers['elements']}
+    id2pos = {x['id']: POSITION_MAP.get(x['element_type'], "UNK") for x in footballers['elements']}
+    id2owner = {x['entry_name']: x['player_first_name'] for x in data['league_entries']}
 
-df = pd.DataFrame(picks)
-df['manager'] = df['entry_name'].map(lambda x: id2owner.get(x, x))
-df['player_name'] = df['element'].map(lambda x: id2baller.get(x, "Unknown"))
-df['position'] = df['element'].map(lambda x: id2pos.get(x, "UNK"))
+    try:
+        choices = load_draft(league_code)
+        picks = choices.get('choices', [])
+    except Exception:
+        picks = []
 
-# Order Managers by Round 1
+    if not picks and 'element_status' in player_data:
+        entries_count = len(data['league_entries'])
+        picks = [
+            {
+                'element': item['element'],
+                'entry_name': item['owner'],
+                'round': (idx // entries_count) + 1
+            }
+            for idx, item in enumerate(player_data['element_status'])
+        ]
+
+    df = pd.DataFrame(picks)
+    df['manager'] = df['entry_name'].map(lambda x: id2owner.get(x, x))
+    df['player_name'] = df['element'].map(lambda x: id2baller.get(x, "Unknown"))
+    df['position'] = df['element'].map(lambda x: id2pos.get(x, "UNK"))
+
+except Exception as e:
+    st.error(f"Error fetching data for league code {league_code}. Please check the ID.")
+    st.stop()
+
+# Order Managers by Round 1 Draft Sequence
 round1 = df[df['round'] == 1]
 draft_order = list(round1['manager']) if not round1.empty else list(df['manager'].unique())
 num_cols = len(draft_order)
 max_rounds = int(df['round'].max()) if not df.empty else 15
 
-# Header Columns with Tooltips
+# Header Columns with Squad Visual Tooltips
 header_cols = st.columns(num_cols)
 
 for idx, manager in enumerate(draft_order):
-    manager_picks = df[df['manager'] == manager]
+    manager_picks = df[df['manager'] == manager].sort_values(by='round')
     
-    # Generate Roster Breakdown HTML for Tooltip
-    roster_lines = []
-    for pos in ["GKP", "DEF", "MID", "FWD"]:
-        pos_players = manager_picks[manager_picks['position'] == pos]['player_name'].tolist()
-        if pos_players:
-            players_str = ", ".join(pos_players)
-            color = POSITION_COLORS.get(pos, "#fff")
-            roster_lines.append(f"<strong style='color:{color}'>{pos}:</strong> {players_str}")
+    # Build Visual Pitch Rows (GKP:2, DEF:5, MID:5, FWD:3)
+    pitch_html_rows = []
     
-    tooltip_content = "<br>".join(roster_lines) if roster_lines else "No picks yet"
+    for pos, slot_count in POSITION_SLOTS.items():
+        pos_picks = manager_picks[manager_picks['position'] == pos]['player_name'].tolist()
+        bg_color = POSITION_COLORS.get(pos, "#424242")
+        
+        row_badges = []
+        for slot in range(slot_count):
+            if slot < len(pos_picks):
+                player_name = pos_picks[slot]
+                row_badges.append(
+                    f'<div class="pitch-badge" style="background-color: {bg_color};" title="{player_name}">{player_name}</div>'
+                )
+            else:
+                row_badges.append(
+                    '<div class="pitch-badge pitch-badge-empty">?</div>'
+                )
+        
+        badges_str = "".join(row_badges)
+        pitch_html_rows.append(f'<div class="pitch-row">{badges_str}</div>')
+    
+    full_pitch_html = "".join(pitch_html_rows)
     
     header_cols[idx].markdown(
         f"""
         <div class="tooltip-header">
             {manager}
             <div class="tooltip-text">
-                <div style="font-weight:bold; border-bottom: 1px solid #444; margin-bottom: 6px; padding-bottom:3px;">
+                <div style="font-weight:bold; border-bottom: 1px solid #444; margin-bottom: 8px; padding-bottom:4px;">
                     {manager}'s Squad
                 </div>
-                {tooltip_content}
+                {full_pitch_html}
             </div>
         </div>
         """,
@@ -229,4 +291,3 @@ for r in range(1, max_rounds + 1):
                 """, 
                 unsafe_allow_html=True
             )
-            
