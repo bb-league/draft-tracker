@@ -55,6 +55,25 @@ st.markdown("""
        Forces 3 to 4 columns on screen at once (~22-23% screen width)
        ---------------------------------------------------------------- */
     @media (max-width: 768px) {
+
+        /* Prevent header text from wrapping excessively on mobile */
+            .block-container h1 {
+                font-size: 1.15rem !important;
+                padding-top: 0rem !important;
+                white-space: nowrap !important;
+            }
+
+            .block-container h3 {
+                font-size: 0.95rem !important;
+                margin-bottom: 0.25rem !important;
+                white-space: nowrap !important;
+            }
+
+            /* Make checkbox text slightly smaller */
+            div[data-testid="stCheckbox"] label span p {
+                font-size: 0.75rem !important;
+            } 
+            
         /* Force row container to fit content side-by-side without expanding */
         div[data-testid="stHorizontalBlock"] {
             display: flex !important;
@@ -236,11 +255,11 @@ def load_draft(league_code):
 top_col1, top_col2 = st.columns([2, 2])
 
 with top_col1:
-    st.title("⚽ FPL Live Draft Board")
-    auto_refresh = st.checkbox("Enable Auto-Refresh (10s)", key="auto_refresh", value=True)
+    st.markdown("# ⚽ FPL Live Draft Board")
+    auto_refresh = st.checkbox("Auto-Refresh (10s)", key="auto_refresh", value=True)
 
 with top_col2:
-    st.write("### League Selection")
+    st.markdown("### League Selection")
     btn_col1, btn_col2 = st.columns(2)
     
     btn_col1.button("BBL1 (16273)", on_click=set_league_bbl1, use_container_width=True)
@@ -249,7 +268,8 @@ with top_col2:
     league_code = st.text_input(
         "Custom League Code", 
         key="custom_league_input",
-        on_change=on_custom_code_change
+        on_change=on_custom_code_change,
+        label_visibility="collapsed"  # Hides extra label space to keep top clean
     )
 
 if not league_code:
