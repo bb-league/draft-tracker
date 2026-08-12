@@ -25,7 +25,7 @@ def on_custom_code_change():
 if "custom_league_input" not in st.session_state:
     st.session_state.custom_league_input = "11004"
 
-# Custom CSS fixing white bar, pop-up clipping, and mobile alignment
+# Base Styling
 st.markdown("""
 <style>
     /* Remove white bar padding and fix top clipping */
@@ -37,69 +37,55 @@ st.markdown("""
     .block-container {
         padding-top: 1.5rem !important;
         padding-bottom: 1rem !important;
-        padding-left: 1rem !important;
-        padding-right: 1rem !important;
-        overflow: visible !important;
+        padding-left: 0.5rem !important;
+        padding-right: 0.5rem !important;
     }
 
-    /* Scroll Container for Mobile - Keeps Columns Side-by-Side */
-    .mobile-scroll-container {
+    /* Scrollable Container on Mobile */
+    .board-wrapper {
         width: 100%;
         overflow-x: auto;
-        overflow-y: visible !important;
+        padding-top: 10px;
+        padding-bottom: 25px;
         -webkit-overflow-scrolling: touch;
-        padding-bottom: 20px;
-        padding-top: 5px;
     }
 
-    /* Target Streamlit columns to align strictly and prevent staggering */
-    div[data-testid="stHorizontalBlock"] {
-        display: flex !important;
-        flex-direction: row !important;
-        flex-wrap: nowrap !important;
-        align-items: stretch !important;
-        min-width: max-content !important;
+    /* Unified Grid Table - Guarantees Strict Vertical Column Alignment */
+    .draft-grid {
+        display: grid;
+        grid-gap: 4px;
+        width: max-content;
+        margin: 0 auto;
     }
 
-    div[data-testid="column"] {
-        min-width: 110px !important;
-        max-width: 120px !important;
-        flex: 1 0 110px !important;
-        padding: 0 2px !important;
-        position: relative !important;
-    }
-
-    /* Manager Header Card */
-    .tooltip-header {
+    /* Manager Header Button */
+    .manager-card {
         position: relative;
-        display: block;
-        width: 100%;
-        text-align: center;
         background-color: #1e1e1e;
         color: #ffffff;
         padding: 6px 2px;
         border-radius: 6px;
         font-weight: bold;
-        font-size: 0.82rem;
-        cursor: pointer;
+        font-size: 0.8rem;
+        text-align: center;
         border: 1px solid #444;
         box-shadow: 0px 2px 4px rgba(0,0,0,0.3);
-        margin-bottom: 6px;
+        cursor: pointer;
         box-sizing: border-box;
     }
 
-    /* Base Hover Tooltip Box */
-    .tooltip-header .tooltip-text {
+    /* Fixed Tooltip Positioning - Stays On-Screen */
+    .manager-card .squad-tooltip {
         visibility: hidden;
-        width: 270px;
+        width: 250px;
         background-color: #121212;
         color: #fff;
         text-align: center;
         border-radius: 8px;
         padding: 10px;
         position: absolute;
-        z-index: 999999 !important;
-        top: 105%;
+        z-index: 9999999 !important;
+        top: 110%;
         left: 50%;
         transform: translateX(-50%);
         box-shadow: 0px 8px 24px rgba(0,0,0,0.95);
@@ -108,36 +94,35 @@ st.markdown("""
         pointer-events: none;
     }
 
-    .tooltip-header:hover .tooltip-text {
+    /* Hover State */
+    .manager-card:hover .squad-tooltip {
         visibility: visible;
     }
 
-    /* Prevent Edge Pop-up Clipping (Desktop & Mobile) */
-    div[data-testid="column"]:first-child .tooltip-text,
-    div[data-testid="column"]:nth-child(2) .tooltip-text {
+    /* Edge Tooltip Offsets to Prevent Off-Screen Clipping */
+    .manager-card.edge-left .squad-tooltip {
         left: 0% !important;
         transform: translateX(0%) !important;
     }
 
-    div[data-testid="column"]:last-child .tooltip-text,
-    div[data-testid="column"]:nth-last-child(2) .tooltip-text {
+    .manager-card.edge-right .squad-tooltip {
         left: auto !important;
         right: 0% !important;
         transform: translateX(0%) !important;
     }
 
-    /* Formation Pitch Layout */
+    /* Pitch Rows Inside Tooltip */
     .pitch-row {
         display: flex;
         justify-content: center;
         gap: 3px;
-        margin-bottom: 5px;
+        margin-bottom: 4px;
     }
 
     .pitch-badge {
         flex: 1;
         padding: 3px 1px;
-        border-radius: 4px;
+        border-radius: 3px;
         font-size: 0.65rem;
         font-weight: bold;
         color: white;
@@ -153,35 +138,33 @@ st.markdown("""
         color: #777;
     }
 
-    /* Pick Cards */
-    .pick-card {
-        padding: 5px 3px;
+    /* Pick Box Cells */
+    .pick-cell {
+        padding: 5px 2px;
         border-radius: 4px;
-        margin-bottom: 4px;
         text-align: center;
-        font-size: 0.75rem;
+        font-size: 0.74rem;
         font-weight: 600;
         color: white;
         white-space: nowrap;
         overflow: hidden;
         text-overflow: ellipsis;
         box-shadow: 0 1px 3px rgba(0,0,0,0.25);
-        line-height: 1.2;
         height: 28px;
         box-sizing: border-box;
+        line-height: 1.3;
     }
-    
-    .empty-card {
-        padding: 5px 3px;
+
+    .empty-cell {
+        padding: 5px 2px;
         border-radius: 4px;
-        margin-bottom: 4px;
         text-align: center;
-        font-size: 0.75rem;
+        font-size: 0.74rem;
         color: #666;
         border: 1px dashed #444;
-        line-height: 1.2;
         height: 28px;
         box-sizing: border-box;
+        line-height: 1.3;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -216,7 +199,7 @@ def load_league(league_code):
 def load_draft(league_code):
     return requests.get(f"https://draft.premierleague.com/api/draft/{league_code}/choices", headers=HEADERS).json()
 
-# Header Area with Title & Dynamic Buttons
+# Header Area Layout
 top_col1, top_col2 = st.columns([2, 2])
 
 with top_col1:
@@ -281,18 +264,22 @@ draft_order = list(round1['manager']) if not round1.empty else list(df['manager'
 num_cols = len(draft_order)
 max_rounds = int(df['round'].max()) if not df.empty else 15
 
-# Wrap Entire Board in Scroll Container
-st.markdown('<div class="mobile-scroll-container">', unsafe_allow_html=True)
+# Build Pure HTML Grid Engine
+grid_html = [f'<div class="board-wrapper"><div class="draft-grid" style="grid-template-columns: repeat({num_cols}, minmax(100px, 110px));">']
 
-# Render Header Manager Columns
-header_cols = st.columns(num_cols)
-
+# Row 1: Manager Headers & Pitch Hover Popups
 for idx, manager in enumerate(draft_order):
     manager_picks = df[df['manager'] == manager].sort_values(by='round')
     
-    # Build Visual Pitch Rows (GKP:2, DEF:5, MID:5, FWD:3)
+    # Classify Edge Columns to keep popups on-screen
+    edge_class = ""
+    if idx <= 1:
+        edge_class = "edge-left"
+    elif idx >= num_cols - 2:
+        edge_class = "edge-right"
+
+    # Pitch Rows (GKP:2, DEF:5, MID:5, FWD:3)
     pitch_html_rows = []
-    
     for pos, slot_count in POSITION_SLOTS.items():
         pos_picks = manager_picks[manager_picks['position'] == pos]['player_name'].tolist()
         bg_color = POSITION_COLORS.get(pos, "#424242")
@@ -300,46 +287,36 @@ for idx, manager in enumerate(draft_order):
         row_badges = []
         for slot in range(slot_count):
             if slot < len(pos_picks):
-                player_name = pos_picks[slot]
-                row_badges.append(
-                    f'<div class="pitch-badge" style="background-color: {bg_color};" title="{player_name}">{player_name}</div>'
-                )
+                p_name = pos_picks[slot]
+                row_badges.append(f'<div class="pitch-badge" style="background-color: {bg_color};" title="{p_name}">{p_name}</div>')
             else:
-                row_badges.append(
-                    '<div class="pitch-badge pitch-badge-empty">?</div>'
-                )
+                row_badges.append('<div class="pitch-badge pitch-badge-empty">?</div>')
         
-        badges_str = "".join(row_badges)
-        pitch_html_rows.append(f'<div class="pitch-row">{badges_str}</div>')
+        pitch_html_rows.append(f'<div class="pitch-row">{"".join(row_badges)}</div>')
     
     full_pitch_html = "".join(pitch_html_rows)
     
-    header_cols[idx].markdown(
-        f"""
-        <div class="tooltip-header">
+    grid_html.append(f"""
+        <div class="manager-card {edge_class}">
             {manager}
-            <div class="tooltip-text">
+            <div class="squad-tooltip">
                 <div style="font-weight:bold; border-bottom: 1px solid #444; margin-bottom: 6px; padding-bottom:3px;">
                     {manager}'s Squad
                 </div>
                 {full_pitch_html}
             </div>
         </div>
-        """,
-        unsafe_allow_html=True
-    )
+    """)
 
-# Render Grid Rows
+# Rows 2 to Max: Round Picks Grid
 for r in range(1, max_rounds + 1):
     round_df = df[df['round'] == r]
     is_odd = (r % 2 != 0)
     
-    cols = st.columns(num_cols)
-    
     for c_idx, manager in enumerate(draft_order):
         pick = round_df[round_df['manager'] == manager]
         
-        # Snake Arrows
+        # Snake Direction Arrow
         if is_odd:
             arrow = "↓" if c_idx == num_cols - 1 else "→"
         else:
@@ -350,28 +327,26 @@ for r in range(1, max_rounds + 1):
             p_pos = pick.iloc[0]['position']
             bg_color = POSITION_COLORS.get(p_pos, "#424242")
             
-            cols[c_idx].markdown(
-                f"""
-                <div class="pick-card" style="background-color: {bg_color};" title="R{r} P{c_idx+1}: {p_name} ({p_pos})">
-                    {p_name} <span style="opacity:0.8; font-size:0.7rem;">{arrow}</span>
+            grid_html.append(f"""
+                <div class="pick-cell" style="background-color: {bg_color};" title="R{r} P{c_idx+1}: {p_name} ({p_pos})">
+                    {p_name} <span style="opacity:0.8; font-size:0.68rem;">{arrow}</span>
                 </div>
-                """, 
-                unsafe_allow_html=True
-            )
+            """)
         else:
-            cols[c_idx].markdown(
-                f"""
-                <div class="empty-card">
+            grid_html.append(f"""
+                <div class="empty-cell">
                     {arrow}
                 </div>
-                """, 
-                unsafe_allow_html=True
-            )
+            """)
 
-# Close Scroll Container
-st.markdown('</div>', unsafe_allow_html=True)
+grid_html.append('</div></div>')
+
+# Render Entire Grid HTML Block
+st.markdown("".join(grid_html), unsafe_allow_html=True)
 
 # Auto-refresh Loop at Bottom
 if auto_refresh:
     time.sleep(10)
     st.rerun()
+
+    
