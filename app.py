@@ -153,41 +153,34 @@ def load_league(league_code):
 def load_draft(league_code):
     return requests.get(f"https://draft.premierleague.com/api/draft/{league_code}/choices", headers=HEADERS).json()
 
-# Initialize session states
-if "league_code" not in st.session_state:
-    st.session_state.league_code = "11004"
-if "auto_refresh" not in st.session_state:
-    st.session_state.auto_refresh = True
+# Callbacks for League Buttons (safely modifies session_state before rerun)
+def set_league_bbl1():
+    st.session_state.custom_league_input = "16273"
+    st.session_state.auto_refresh = False
 
+def set_league_bbl2():
+    st.session_state.custom_league_input = "11004"
+    st.session_state.auto_refresh = False
+
+# Initialize session_state defaults if not set
+if "custom_league_input" not in st.session_state:
+    st.session_state.custom_league_input = "11004"
+
+# Header Layout
 top_col1, top_col2 = st.columns([2, 2])
 
 with top_col1:
     st.title("⚽ FPL Live Draft Board")
-    auto_refresh = st.checkbox(
-        "Enable Auto-Refresh (10s)", 
-        value=st.session_state.auto_refresh,
-        key="auto_refresh"
-    )
+    auto_refresh = st.checkbox("Enable Auto-Refresh (10s)", key="auto_refresh", value=True)
 
 with top_col2:
     st.write("### League Selection")
     btn_col1, btn_col2 = st.columns(2)
     
-    if btn_col1.button("BBL1 (16273)", use_container_width=True):
-        st.session_state.league_code = "16273"
-        st.session_state.auto_refresh = False  # Auto-untoggle on switch
-        st.rerun()
-        
-    if btn_col2.button("BBL2 (11004)", use_container_width=True):
-        st.session_state.league_code = "11004"
-        st.session_state.auto_refresh = False  # Auto-untoggle on switch
-        st.rerun()
+    btn_col1.button("BBL1 (16273)", on_click=set_league_bbl1, use_container_width=True)
+    btn_col2.button("BBL2 (11004)", on_click=set_league_bbl2, use_container_width=True)
 
-    league_code = st.text_input("Custom League Code", value=st.session_state.league_code)
-    if league_code != st.session_state.league_code:
-        st.session_state.league_code = league_code
-        st.session_state.auto_refresh = False  # Auto-untoggle on manual edit
-        st.rerun()
+    league_code = st.text_input("Custom League Code", key="custom_league_input")
 
 if not league_code:
     st.warning("Please enter a valid Draft League Code.")
