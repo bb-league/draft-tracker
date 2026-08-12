@@ -18,6 +18,22 @@ st.markdown("""
         z-index: 1 !important;
     }
     
+    /* Enable horizontal scrolling for grid on mobile screens */
+    .mobile-scroll-container {
+        width: 100%;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+        padding-bottom: 8px;
+    }
+
+    /* Preserve min column width on smaller mobile viewports */
+    @media (max-width: 768px) {
+        div[data-testid="stHorizontalBlock"] {
+            flex-wrap: nowrap !important;
+            min-width: 800px; /* Forces side-by-side grid structure */
+        }
+    }
+    
     .block-container {
         padding-top: 2rem !important;
         padding-bottom: 1rem !important;
@@ -164,7 +180,7 @@ def set_league_bbl2():
 
 def on_custom_code_change():
     st.session_state.auto_refresh = False
-    
+
 # Initialize session_state defaults if not set
 if "custom_league_input" not in st.session_state:
     st.session_state.custom_league_input = "11004"
@@ -233,6 +249,9 @@ round1 = df[df['round'] == 1]
 draft_order = list(round1['manager']) if not round1.empty else list(df['manager'].unique())
 num_cols = len(draft_order)
 max_rounds = int(df['round'].max()) if not df.empty else 15
+
+# Start mobile scroll container wrapper
+st.markdown('<div class="mobile-scroll-container">', unsafe_allow_html=True)
 
 # Header Columns with Squad Visual Tooltips
 header_cols = st.columns(num_cols)
