@@ -25,10 +25,10 @@ def on_custom_code_change():
 if "custom_league_input" not in st.session_state:
     st.session_state.custom_league_input = "11004"
 
-# Clean CSS Styling + Mobile Horizontal Scroll Override
+# Custom CSS
 st.markdown("""
 <style>
-    /* Remove header padding & white bar overlap */
+    /* Clean layout spacing */
     header[data-testid="stHeader"] {
         background-color: transparent !important;
         z-index: 1 !important;
@@ -41,57 +41,49 @@ st.markdown("""
         padding-right: 0.5rem !important;
     }
 
-    /* ----------------------------------------------------------------
-       MOBILE HORIZONTAL SCROLL OVERRIDE
-       ---------------------------------------------------------------- */
-    /* Container wrapper allowing smooth horizontal swiping */
+    /* Mobile Side-Scroll Wrapper */
     .mobile-scroll-wrapper {
         width: 100%;
         overflow-x: auto !important;
         overflow-y: visible !important;
         -webkit-overflow-scrolling: touch;
-        padding-bottom: 15px;
+        padding-bottom: 20px;
     }
 
-    /* Prevent Streamlit from stacking columns vertically on mobile */
-    @media (max-width: 768px) {
-        div[data-testid="stHorizontalBlock"] {
-            display: flex !important;
-            flex-direction: row !important;
-            flex-wrap: nowrap !important;
-            min-width: max-content !important;
-        }
-
-        /* Force columns to stay side-by-side with a compact width */
-        div[data-testid="column"] {
-            min-width: 110px !important;
-            max-width: 120px !important;
-            flex: 1 0 110px !important;
-            padding: 0 2px !important;
-        }
-
-        /* Adjust popover button padding on small screens */
-        button[data-testid="stPopoverButton"] {
-            padding: 4px 2px !important;
-            font-size: 0.75rem !important;
-        }
+    /* Force Streamlit Columns to stay side-by-side & align strictly */
+    div[data-testid="stHorizontalBlock"] {
+        display: flex !important;
+        flex-direction: row !important;
+        flex-wrap: nowrap !important;
+        align-items: stretch !important;
+        width: max-content !important;
+        min-width: 100% !important;
     }
 
-    /* Fixed size pick cards for tight horizontal alignment */
+    div[data-testid="column"] {
+        width: 110px !important;
+        min-width: 110px !important;
+        max-width: 110px !important;
+        flex: 0 0 110px !important;
+        padding: 0 2px !important;
+        box-sizing: border-box !important;
+    }
+
+    /* Fixed Pick Card Sizing for Strict Alignment */
     .pick-card {
         padding: 4px 2px;
         border-radius: 4px;
         margin-bottom: 4px;
         text-align: center;
-        font-size: 0.75rem;
+        font-size: 0.73rem;
         font-weight: 600;
         color: white;
         white-space: nowrap;
         overflow: hidden;
         text-overflow: ellipsis;
         box-shadow: 0 1px 3px rgba(0,0,0,0.25);
-        height: 32px;
-        line-height: 24px;
+        height: 30px;
+        line-height: 22px;
         box-sizing: border-box;
     }
     
@@ -100,12 +92,21 @@ st.markdown("""
         border-radius: 4px;
         margin-bottom: 4px;
         text-align: center;
-        font-size: 0.75rem;
+        font-size: 0.73rem;
         color: #666;
         border: 1px dashed #444;
-        height: 32px;
-        line-height: 24px;
+        height: 30px;
+        line-height: 22px;
         box-sizing: border-box;
+    }
+
+    /* Popover button compact styling */
+    button[data-testid="stPopoverButton"] {
+        padding: 4px 2px !important;
+        font-size: 0.75rem !important;
+        white-space: nowrap !overflow: hidden;
+        text-overflow: ellipsis;
+        height: 32px !important;
     }
 
     /* Roster Pitch Badges inside Popover */
@@ -191,15 +192,20 @@ if not league_code:
     st.warning("Please enter a valid Draft League Code.")
     st.stop()
 
-# Load API Data
+# Load Data
 try:
     footballers = load_static()
     data, player_data = load_league(league_code)
 
     id2baller = {x['id']: x['web_name'] for x in footballers['elements']}
     id2pos = {x['id']: POSITION_MAP.get(x['element_type'], "UNK") for x in footballers['elements']}
-    id2owner = {x['entry_name']: x['player_first_name'] for x in data['league_entries']}
+    
+    # Map entry ID to Manager name
+    entry2owner = {x['entry_id']: x['player_first_name'] for x in data['league_entries']}
+    entry2name = {x['entry_id']: x['entry_name'] for x in data['league_entries']}
 
+    # Load Choices
+    picks = []
     try:
         choices = load_draft(league_code)
         picks = choices.get('choices', [])
@@ -211,43 +217,47 @@ try:
         picks = [
             {
                 'element': item['element'],
-                'entry_name': item['owner'],
-                'round': (idx // entries_count) + 1
+                'entry': item['owner'],
+                'round': (idx // entries_count) + 1,
+                'choice': idx + 1
             }
             for idx, item in enumerate(player_data['element_status'])
+            if item.get('owner') is not None
         ]
 
-    df = pd.DataFrame(picks)
-    df['manager'] = df['entry_name'].map(lambda x: id2owner.get(x, x)).fillna("Unknown Manager")
-    df['player_name'] = df['element'].map(lambda x: id2baller.get(x, "Unknown"))
-    df['position'] = df['element'].map(lambda x: id2pos.get(x, "UNK"))
+    df = pd.DataFrame(picks) if picks else pd.DataFrame(columns=['entry', 'element', 'round'])
+
+    if not df.empty:
+        df['manager'] = df['entry'].map(lambda x: entry2owner.get(x, entry2name.get(x, "Unknown")))
+        df['player_name'] = df['element'].map(lambda x: id2baller.get(x, "Unknown"))
+        df['position'] = df['element'].map(lambda x: id2pos.get(x, "UNK"))
 
 except Exception as e:
     st.error(f"Error fetching data for league code {league_code}. Please check the ID.")
     st.stop()
 
-# Order Managers by Round 1 Draft Sequence
-round1 = df[df['round'] == 1]
-draft_order = list(round1['manager']) if not round1.empty else list(df['manager'].unique())
+# Build Draft Order based on League Entries order
+league_entries = data['league_entries']
+draft_order = [x['player_first_name'] for x in league_entries]
+entry_ids = [x['entry_id'] for x in league_entries]
 num_cols = len(draft_order)
-max_rounds = int(df['round'].max()) if not df.empty else 15
+max_rounds = 15
 
-# START MOBILE SCROLL WRAPPER
+# Wrapper for Mobile Side Scrolling
 st.markdown('<div class="mobile-scroll-wrapper">', unsafe_allow_html=True)
 
-# Header Manager Row using Streamlit Popovers
+# Manager Header Row
 header_cols = st.columns(num_cols)
 
-for idx, manager in enumerate(draft_order):
-    manager_picks = df[df['manager'] == manager].sort_values(by='round')
-    
-    manager_label = str(manager) if pd.notna(manager) and str(manager).strip() else f"Team {idx + 1}"
+for idx, (manager, entry_id) in enumerate(zip(draft_order, entry_ids)):
+    manager_picks = df[df['entry'] == entry_id].sort_values(by='round') if not df.empty else pd.DataFrame()
+    manager_label = str(manager) if str(manager).strip() else f"Team {idx + 1}"
     
     with header_cols[idx].popover(manager_label, use_container_width=True):
         st.markdown(f"**{manager_label}'s Squad**")
         
         for pos, slot_count in POSITION_SLOTS.items():
-            pos_picks = manager_picks[manager_picks['position'] == pos]['player_name'].tolist()
+            pos_picks = manager_picks[manager_picks['position'] == pos]['player_name'].tolist() if not manager_picks.empty else []
             bg_color = POSITION_COLORS.get(pos, "#424242")
             
             row_badges = []
@@ -262,23 +272,24 @@ for idx, manager in enumerate(draft_order):
             
             st.markdown(f'<div class="pitch-row">{"".join(row_badges)}</div>', unsafe_allow_html=True)
 
-st.write("") # Spacer
+st.write("")
 
 # Draft Grid Rows
 for r in range(1, max_rounds + 1):
-    round_df = df[df['round'] == r]
+    round_df = df[df['round'] == r] if not df.empty else pd.DataFrame()
     is_odd = (r % 2 != 0)
     
     cols = st.columns(num_cols)
     
-    for c_idx, manager in enumerate(draft_order):
-        pick = round_df[round_df['manager'] == manager]
-        
+    for c_idx, (manager, entry_id) in enumerate(zip(draft_order, entry_ids)):
         # Snake Direction Arrow
         if is_odd:
             arrow = "↓" if c_idx == num_cols - 1 else "→"
         else:
             arrow = "↓" if c_idx == 0 else "←"
+
+        # Exact match per manager & round
+        pick = round_df[round_df['entry'] == entry_id] if not round_df.empty else pd.DataFrame()
 
         if not pick.empty:
             p_name = pick.iloc[0]['player_name']
@@ -288,7 +299,7 @@ for r in range(1, max_rounds + 1):
             cols[c_idx].markdown(
                 f"""
                 <div class="pick-card" style="background-color: {bg_color};" title="R{r} P{c_idx+1}: {p_name} ({p_pos})">
-                    {p_name} <span style="opacity:0.8; font-size:0.7rem;">{arrow}</span>
+                    {p_name} <span style="opacity:0.8; font-size:0.65rem;">{arrow}</span>
                 </div>
                 """, 
                 unsafe_allow_html=True
@@ -303,10 +314,10 @@ for r in range(1, max_rounds + 1):
                 unsafe_allow_html=True
             )
 
-# CLOSE MOBILE SCROLL WRAPPER
 st.markdown('</div>', unsafe_allow_html=True)
 
 # Auto-refresh Loop at Bottom
 if auto_refresh:
     time.sleep(10)
     st.rerun()
+    
