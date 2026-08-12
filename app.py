@@ -35,10 +35,10 @@ st.markdown("""
     }
     
     .block-container {
-        padding-top: 1.5rem !important;
+        padding-top: 1rem !important;
         padding-bottom: 1rem !important;
-        padding-left: 0.25rem !important;
-        padding-right: 0.25rem !important;
+        padding-left: 0.1rem !important;
+        padding-right: 0.1rem !important;
     }
 
     /* Mobile Side-Scroll Wrapper */
@@ -50,40 +50,50 @@ st.markdown("""
         padding-bottom: 20px;
     }
 
-    /* Force Streamlit Columns to stay side-by-side */
-    div[data-testid="stHorizontalBlock"] {
-        display: flex !important;
-        flex-direction: row !important;
-        flex-wrap: nowrap !important;
-        align-items: stretch !important;
-        width: max-content !important;
-        min-width: 100% !important;
-    }
-
     /* ----------------------------------------------------------------
-       MOBILE-ONLY NARROW COLUMNS (< 768px)
+       MOBILE STRICT COMPRESSION (< 768px)
+       Forces 3 to 4 columns on screen at once (~22-23% screen width)
        ---------------------------------------------------------------- */
     @media (max-width: 768px) {
-        div[data-testid="column"] {
-            width: 68px !important;
-            min-width: 68px !important;
-            max-width: 68px !important;
-            flex: 0 0 68px !important;
+        /* Force row container to fit content side-by-side without expanding */
+        div[data-testid="stHorizontalBlock"] {
+            display: flex !important;
+            flex-direction: row !important;
+            flex-wrap: nowrap !important;
+            align-items: stretch !important;
+            width: max-content !important;
+            min-width: 100% !important;
+        }
+
+        /* Override Streamlit's full-width column calculation on mobile */
+        div[data-testid="column"],
+        div[data-testid="stColumn"],
+        div[data-testid="column"] > div {
+            width: 22vw !important;
+            min-width: 80px !important;
+            max-width: 85px !important;
+            flex: 0 0 22vw !important;
             padding: 0 1px !important;
             box-sizing: border-box !important;
         }
 
+        /* Pick Cards: Slightly larger font for legibility in narrow cards */
         .pick-card, .empty-card {
-            padding: 2px 1px !important;
-            font-size: 0.62rem !important;
-            height: 26px !important;
-            line-height: 20px !important;
+            padding: 3px 2px !important;
+            font-size: 0.75rem !important;
+            font-weight: 700 !important;
+            height: 28px !important;
+            line-height: 22px !important;
+            width: 100% !important;
         }
 
+        /* Header Popover Button */
         button[data-testid="stPopoverButton"] {
-            padding: 1px 1px !important;
-            font-size: 0.62rem !important;
-            height: 26px !important;
+            padding: 2px 1px !important;
+            font-size: 0.72rem !important;
+            font-weight: 700 !important;
+            height: 28px !important;
+            width: 100% !important;
         }
     }
 
@@ -91,6 +101,15 @@ st.markdown("""
        DESKTOP DEFAULTS (≥ 769px)
        ---------------------------------------------------------------- */
     @media (min-width: 769px) {
+        div[data-testid="stHorizontalBlock"] {
+            display: flex !important;
+            flex-direction: row !important;
+            flex-wrap: nowrap !important;
+            align-items: stretch !important;
+            width: max-content !important;
+            min-width: 100% !important;
+        }
+
         div[data-testid="column"] {
             width: 110px !important;
             min-width: 110px !important;
@@ -102,23 +121,23 @@ st.markdown("""
 
         .pick-card, .empty-card {
             padding: 3px 2px;
-            font-size: 0.72rem;
+            font-size: 0.75rem;
             height: 30px;
             line-height: 22px;
         }
 
         button[data-testid="stPopoverButton"] {
             padding: 2px 2px !important;
-            font-size: 0.75rem !important;
+            font-size: 0.78rem !important;
             height: 30px !important;
         }
     }
 
+    /* Shared Card Styling */
     .pick-card {
         border-radius: 4px;
         margin-bottom: 3px;
         text-align: center;
-        font-weight: 600;
         color: white;
         white-space: nowrap;
         overflow: hidden;
@@ -136,14 +155,13 @@ st.markdown("""
         box-sizing: border-box;
     }
 
-    /* Compact Popover Toggle Button */
     button[data-testid="stPopoverButton"] {
         white-space: nowrap;
         overflow: hidden;
         text-overflow: ellipsis;
     }
 
-    /* --- POPOVER CONTENT SIZE OVERRIDES (Expanded View) --- */
+    /* --- EXPANDED POPOVER OVERRIDES --- */
     div[data-testid="stPopoverBody"] {
         width: 560px !important;
         min-width: 300px !important;
