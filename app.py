@@ -113,8 +113,8 @@ st.markdown("""
     /* --- POPOVER CONTENT SIZE OVERRIDES --- */
     /* Break out of column width constraints for the popover panel */
     div[data-testid="stPopoverBody"] {
-        width: 280px !important;
-        min-width: 280px !important;
+        width: 560px !important;
+        min-width: 320px !important;
         max-width: 90vw !important;
         padding: 12px !important;
     }
@@ -340,4 +340,3 @@ st.markdown('</div>', unsafe_allow_html=True)
 if auto_refresh:
     time.sleep(10)
     st.rerun()
-    
