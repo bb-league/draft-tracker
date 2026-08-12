@@ -17,14 +17,6 @@ st.markdown("""
         background-color: transparent !important;
         z-index: 1 !important;
     }
-    
-    /* Enable horizontal scrolling for grid on mobile screens */
-    .mobile-scroll-container {
-        width: 100%;
-        overflow-x: auto;
-        -webkit-overflow-scrolling: touch;
-        padding-bottom: 8px;
-    }
 
     /* Fix Pick Cards for mobile & desktop */
     .pick-card, .empty-card {
