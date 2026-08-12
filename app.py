@@ -8,51 +8,58 @@ st.set_page_config(
     initial_sidebar_state="collapsed"
 )
 
-# Custom CSS for compact density and instant CSS tooltips
+# Custom CSS for balanced sizing and layout
 st.markdown("""
 <style>
-    /* Remove padding around main container for maximum screen space */
+    /* Clean container padding */
     .block-container {
-        padding-top: 1rem !important;
-        padding-bottom: 0rem !important;
+        padding-top: 1.5rem !important;
+        padding-bottom: 1rem !important;
         padding-left: 1.5rem !important;
         padding-right: 1.5rem !important;
     }
     
-    /* Hover Tooltip Container */
+    /* Header Container - Prevent clipping and give space */
+    .header-row-container {
+        margin-bottom: 12px;
+    }
+
+    /* Hover Tooltip Header Button */
     .tooltip-header {
         position: relative;
-        display: inline-block;
+        display: block;
         width: 100%;
         text-align: center;
         background-color: #1e1e1e;
         color: #ffffff;
-        padding: 4px 2px;
-        border-radius: 4px;
+        padding: 6px 4px;
+        border-radius: 5px;
         font-weight: bold;
+        font-size: 0.9rem;
         cursor: pointer;
         border: 1px solid #444;
+        box-shadow: 0px 2px 4px rgba(0,0,0,0.2);
     }
 
     /* Hidden Tooltip Box */
     .tooltip-header .tooltip-text {
         visibility: hidden;
-        width: 240px;
+        width: 250px;
         background-color: #121212;
         color: #fff;
         text-align: left;
         border-radius: 6px;
-        padding: 8px 10px;
+        padding: 10px 12px;
         position: absolute;
-        z-index: 999;
-        top: 100%;
+        z-index: 9999;
+        top: 110%;
         left: 50%;
         transform: translateX(-50%);
-        box-shadow: 0px 4px 12px rgba(0,0,0,0.5);
+        box-shadow: 0px 6px 16px rgba(0,0,0,0.6);
         border: 1px solid #333;
         font-weight: normal;
-        font-size: 0.75rem;
-        line-height: 1.2;
+        font-size: 0.8rem;
+        line-height: 1.35;
     }
 
     /* Show Tooltip on Mouseover */
@@ -60,30 +67,31 @@ st.markdown("""
         visibility: visible;
     }
 
-    /* Compact Badge Card */
+    /* 1.5x Larger Card Sizing */
     .pick-card {
-        padding: 2px 4px;
-        border-radius: 3px;
-        margin-bottom: 2px;
+        padding: 6px 6px;
+        border-radius: 4px;
+        margin-bottom: 4px;
         text-align: center;
-        font-size: 0.73rem;
+        font-size: 0.82rem;
         font-weight: 600;
         color: white;
         white-space: nowrap;
         overflow: hidden;
         text-overflow: ellipsis;
-        box-shadow: 0 1px 2px rgba(0,0,0,0.15);
-        line-height: 1.2;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.25);
+        line-height: 1.3;
     }
     
     .empty-card {
-        padding: 2px 4px;
-        border-radius: 3px;
-        margin-bottom: 2px;
+        padding: 6px 6px;
+        border-radius: 4px;
+        margin-bottom: 4px;
         text-align: center;
-        font-size: 0.73rem;
+        font-size: 0.82rem;
         color: #666;
         border: 1px dashed #444;
+        line-height: 1.3;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -149,7 +157,7 @@ draft_order = list(round1['manager']) if not round1.empty else list(df['manager'
 num_cols = len(draft_order)
 max_rounds = int(df['round'].max()) if not df.empty else 15
 
-# Header Columns with Mouseover Hover Tooltips
+# Header Columns with Tooltips
 header_cols = st.columns(num_cols)
 
 for idx, manager in enumerate(draft_order):
@@ -171,7 +179,7 @@ for idx, manager in enumerate(draft_order):
         <div class="tooltip-header">
             {manager}
             <div class="tooltip-text">
-                <div style="font-weight:bold; border-bottom: 1px solid #444; margin-bottom: 4px; padding-bottom:2px;">
+                <div style="font-weight:bold; border-bottom: 1px solid #444; margin-bottom: 6px; padding-bottom:3px;">
                     {manager}'s Squad
                 </div>
                 {tooltip_content}
@@ -183,7 +191,7 @@ for idx, manager in enumerate(draft_order):
 
 st.write("") # Micro-spacer
 
-# Render Single Desktop View Compact Draft Board Grid
+# Render Grid
 for r in range(1, max_rounds + 1):
     round_df = df[df['round'] == r]
     is_odd = (r % 2 != 0)
@@ -207,7 +215,7 @@ for r in range(1, max_rounds + 1):
             cols[c_idx].markdown(
                 f"""
                 <div class="pick-card" style="background-color: {bg_color};" title="R{r} P{c_idx+1}: {p_name} ({p_pos})">
-                    {p_name} <span style="opacity:0.75; font-size:0.65rem;">{arrow}</span>
+                    {p_name} <span style="opacity:0.8; font-size:0.75rem;">{arrow}</span>
                 </div>
                 """, 
                 unsafe_allow_html=True
@@ -221,3 +229,4 @@ for r in range(1, max_rounds + 1):
                 """, 
                 unsafe_allow_html=True
             )
+            
