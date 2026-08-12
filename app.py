@@ -33,7 +33,7 @@ st.markdown("""
             min-width: 800px; /* Forces side-by-side grid structure */
         }
     }
-    
+
     .block-container {
         padding-top: 2rem !important;
         padding-bottom: 1rem !important;
@@ -338,6 +338,9 @@ for r in range(1, max_rounds + 1):
                 """, 
                 unsafe_allow_html=True
             )
+
+# Close mobile scroll container wrapper
+st.markdown('</div>', unsafe_allow_html=True)
 
 # Auto-refresh Loop at the Bottom
 if st.session_state.auto_refresh:
