@@ -375,4 +375,3 @@ st.markdown('</div>', unsafe_allow_html=True)
 if auto_refresh:
     time.sleep(10)
     st.rerun()
-    
